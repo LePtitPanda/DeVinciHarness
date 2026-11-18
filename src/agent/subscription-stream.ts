@@ -88,6 +88,8 @@ export function nativeSubscriptionStream(provider: Provider, background: () => b
 				}
 				if (!terminal) throw new Error("Native stream ended without a terminal response");
 			} catch (error) {
+				// Fork: the user-facing message below is generic; keep the provider's real reason in the log.
+				console.error(`[subscription] ${logicalModel.provider}:${logicalModel.id} failed:`, error instanceof Error ? error.message : error);
 				if (terminal) return;
 				if (!committed) { markUnadmittedUsage(partial.usage); lifecycle?.noDispatch(await subscriptionDenial(scope, controller, options?.signal?.aborted === true, purpose)); }
 				partial = { ...partial, stopReason: signal.aborted ? "aborted" : "error", errorMessage: nativeSubscriptionError(logicalModel.provider, error instanceof Error ? error.message : "") };

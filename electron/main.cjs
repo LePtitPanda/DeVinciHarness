@@ -33,6 +33,8 @@ const { attachSubscriptionChild, subscriptionControl } = require("./subscription
 const { desktopAPIHeaders } = require("./desktop-api.cjs");
 const { openWebSubscriptionBrowser } = require("./web-subscription-browser.cjs");
 const { randomBytes } = require("node:crypto");
+// Fork: main's own Node fetches (OAuth, token refresh, model lists) also trust the OS store; see NODE_USE_SYSTEM_CA below.
+try { const tls = require("node:tls"); tls.setDefaultCACertificates([...new Set([...tls.getCACertificates("default"), ...tls.getCACertificates("system")])]); } catch { /* older Node: bundled CAs only */ }
 const { spawn } = require("node:child_process");
 const fs = require("node:fs");
 const http = require("node:http");
@@ -226,6 +228,9 @@ function startServer(port) {
 					...process.env,
 					ELECTRON_RUN_AS_NODE: "1",
 					NODE_ENV: "production",
+					// Fork: trust the OS certificate store too, so HTTPS-scanning antivirus
+					// (e.g. Kaspersky) or corporate TLS proxies don't fail as "self signed certificate".
+					NODE_USE_SYSTEM_CA: "1",
 					PORT: String(port),
 					HOSTNAME: "127.0.0.1", // the server defaults to 0.0.0.0 — never
 					LH_DATA_DIR: DATA_DIR(),
