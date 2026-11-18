@@ -48,7 +48,9 @@ export function nativeSubscriptionStream(provider: Provider, background: () => b
 				const auth = await subscriptionLease(scope, purpose); check();
 				const authKeys = new Set(Object.keys(auth.headers ?? {}).map((key) => key.toLowerCase()));
 				if (Object.keys(options?.headers ?? {}).some((key) => authKeys.has(key.toLowerCase()))) throw new Error("Authorization override forbidden");
-				const nativeModel = provider.getModels().find((model) => model.id === logicalModel.id && model.api === logicalModel.api);
+				// Fork: Codex models newer than the bundled catalog come from the account's live list (desktop main already validated them).
+				const nativeModel = provider.getModels().find((model) => model.id === logicalModel.id && model.api === logicalModel.api)
+					?? (nativeId === "openai-codex" && logicalModel.api === "openai-codex-responses" ? { ...logicalModel, provider: nativeId } : undefined);
 				if (!nativeModel) throw new Error("Native model unavailable");
 				const transport = {
 					...nativeModel,

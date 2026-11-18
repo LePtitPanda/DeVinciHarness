@@ -77,6 +77,22 @@ async function loadSubscriptionSDK(baseDirectory) {
 	const codex = await load("@earendil-works/pi-ai/providers/openai-codex");
 	return { ...sdk, ...copilot, ...xai, ...codex };
 }
+// shortcut: a high client_version so the Codex backend does not hide models gated on newer CLI releases; lower it if the backend ever rejects unknown versions.
+const CODEX_CLIENT_VERSION = "99.0.0";
+/** Fork: account-offered Codex models the bundled pi-ai catalog does not know yet, cloned from the closest bundled model. */
+function codexLiveModels(bundled, offered) {
+	if (!bundled.length || !Array.isArray(offered)) return [];
+	const known = new Set(bundled.map((m) => m.id));
+	const shared = (a, b) => { let i = 0; while (i < a.length && a[i] === b[i]) i++; return i; };
+	return offered.filter((m) => m && m.visibility === "list" && typeof m.slug === "string" && /^[\w.:-]{1,100}$/.test(m.slug) && !known.has(m.slug)).map((m) => {
+		// Closest by shared id prefix; ties go to the later (newer) bundled entry.
+		const template = bundled.reduce((best, c) => shared(c.id, m.slug) >= shared(best.id, m.slug) ? c : best);
+		return { ...clone(template), id: m.slug, name: typeof m.display_name === "string" && m.display_name ? m.display_name : m.slug, ...(Number.isSafeInteger(m.context_window) && m.context_window > 0 ? { contextWindow: m.context_window } : {}) };
+	});
+}
+function codexAccountId(token) {
+	try { return JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString("utf8"))?.["https://api.openai.com/auth"]?.chatgpt_account_id; } catch { return undefined; }
+}
 function nativeProvider(sdk, providerId) {
 	if (providerId === "github-copilot") return sdk.githubCopilotProvider();
 	if (providerId === "xai") return sdk.xaiProvider();
@@ -149,6 +165,7 @@ function createSubscriptions(options) {
 				const native = nativeProvider(sdk, entry.providerId);
 				// No API-key auth method exists in this collection: ambient keys cannot become a fallback.
 				entry.provider = { ...native, auth: { oauth: native.auth.oauth } };
+				if (entry.providerId === "openai-codex") { entry.live = []; entry.provider.getModels = () => [...native.getModels(), ...entry.live]; }
 				const store = {
 					read: async (id) => id === entry.providerId ? clone(entry.state.credential) : undefined,
 					list: async () => entry.state.credential ? [{ providerId: entry.providerId, type: "oauth" }] : [],
@@ -171,9 +188,30 @@ function createSubscriptions(options) {
 				};
 				entry.models = sdk.createModels({ credentials: store }); entry.models.setProvider(entry.provider);
 				await updateEndpoint(entry); entry.ready = true; catalog(entry); changed(entry);
+				void refreshLive(entry);
 			} catch { entry.fatal = true; entry.error = MESSAGES.storage; changed(entry); }
 		}));
 	})();
+	/** Fork: fetch the account's own Codex model list; failures keep the bundled list. */
+	async function refreshLive(entry) {
+		if (!entry.live || !entry.state.credential || entry.fatal || closed || paused || entry.liveRefreshing) return;
+		entry.liveRefreshing = true; entry.liveCheckedAt = Date.now();
+		const connectionId = entry.state.connectionId;
+		try {
+			const auth = (await entry.models.getAuth(entry.providerId))?.auth;
+			const token = auth?.apiKey, accountId = entry.state.credential?.accountId ?? (token && codexAccountId(token));
+			if (!token || !entry.endpoint) return;
+			const response = await (options.fetch ?? globalThis.fetch)(`${entry.endpoint}/codex/models?client_version=${CODEX_CLIENT_VERSION}`, {
+				headers: { ...auth.headers, authorization: `Bearer ${token}`, ...(accountId ? { "chatgpt-account-id": accountId } : {}), originator: "learnharness", accept: "application/json" },
+				redirect: "error", signal: AbortSignal.timeout(15000),
+			});
+			if (!response.ok || connectionId !== entry.state.connectionId) return;
+			const bundled = entry.provider.getModels().filter((m) => !entry.live.includes(m));
+			entry.live = codexLiveModels(bundled, (await response.json())?.models);
+			if (connectionId !== entry.state.connectionId) { entry.live = []; return; }
+			const before = entry.authorityRevision; catalog(entry); if (entry.authorityRevision !== before) changed(entry);
+		} catch { /* keep the previous list */ } finally { entry.liveRefreshing = false; }
+	}
 	function current(entry, scope) {
 		return statusOf(entry).connected && scope?.providerId === entry.providerId && scope.connectionId === entry.state.connectionId && scope.epoch === entry.epoch && scope.authorityRevision === entry.authorityRevision && entry.catalog.some((m) => m.id === scope.selectedModelId);
 	}
@@ -226,6 +264,7 @@ function createSubscriptions(options) {
 				await save(entry, { version: 1, allowBackgroundUse: enabled ?? entry.state.allowBackgroundUse, connectionId: randomUUID(), credential });
 				entry.blocked = false; entry.authFailed = false; entry.error = undefined;
 			});
+			if (entry.live) { entry.live = []; void refreshLive(entry); }
 		} catch (error) {
 			if (active() && !entry.fatal) entry.error = error?.code === "cancel" ? undefined : MESSAGES.login;
 			if (!abort.signal.aborted) throw failure(entry.fatal ? "storage" : "login");
@@ -254,7 +293,12 @@ function createSubscriptions(options) {
 	}
 	return {
 		ready,
-		async snapshot() { await ready; return snapshotNow(); },
+		async snapshot() {
+			await ready;
+			// Pick up newly released Codex models without a restart (at most every 10 minutes).
+			for (const entry of entries.values()) if (Date.now() - (entry.liveCheckedAt ?? 0) > 600000) void refreshLive(entry);
+			return snapshotNow();
+		},
 		async status() { await ready; return snapshotNow().statuses; },
 		login, consent, cancel,
 		async respond(providerId, attemptId, promptId, value) {
@@ -295,4 +339,4 @@ function createSubscriptions(options) {
 		close() { closed = true; for (const entry of entries.values()) { cancel(entry.providerId); entry.epoch++; changed(entry); } },
 	};
 }
-module.exports = { createSubscriptions, loadSubscriptionSDK, publicError, validEndpoint, LABELS };
+module.exports = { createSubscriptions, loadSubscriptionSDK, publicError, validEndpoint, LABELS, codexLiveModels };
