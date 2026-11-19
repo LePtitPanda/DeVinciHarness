@@ -43,6 +43,6 @@ describe("LH mark", () => {
 		const html = renderToStaticMarkup(<LhMark />);
 		assert.equal((html.match(/fill:var\(--lh-line-strong\)/g) ?? []).length, 2);
 		assert.ok(!html.includes("#fff"));
-		assert.ok(html.includes("rgb(148,148,148)"));
+		// fork: the De Vinci V has no gray spiral, both paths use the strong ink.
 	});
 });
