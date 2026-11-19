@@ -748,5 +748,8 @@
  "Times New Roman": "Times New Roman",
  "Trebuchet MS": "Trebuchet MS",
  "Verdana": "Verdana",
- "Electron": "Electron"
+ "Electron": "Electron",
+ "AI language": "Langue de l’IA",
+ "Same as language": "Comme la langue",
+ "The whole app. Changing it reloads the window.": "Toute l’application. Changer recharge la fenêtre."
 }

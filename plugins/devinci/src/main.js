@@ -3,6 +3,7 @@
 import { STRINGS } from './strings.js';
 import { startTranslator } from './translate.js';
 import FR_APP from './i18n/fr.json';
+import { runOnboarding } from './onboarding.js';
 
 const ICON = '<svg viewBox="60 55 180 192" fill="currentColor"><path d="M235,85.7l-34.4,67c0,0-32.8-51.1-16.2-80.5c14.1-21.9,34.7-11.8,37.6-9.4C230.1,67.6,235,76.3,235,85.7z"/><path d="M159.9,178.9L103,68.6H65l89.4,173.1l0,0C166.7,232.8,172.1,202.5,159.9,178.9z"/></svg>';
 const CAL_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>';
@@ -38,11 +39,6 @@ export function activate(ctx) {
   const fmtDay = (s) => new Date(`${s.slice(0, 10)}T12:00:00`).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' });
   const button = (props, signal) => { const slot = el('span'); ctx.ui.mountButton(slot, { size: 'sm', ...props }, { signal }); return slot; };
 
-  async function setLanguage(next) {
-    await ctx.call('set-profile', { language: next });
-    try { localStorage.setItem(LANG_KEY, next); } catch { /* per-window convenience only */ }
-    location.reload(); // the translator applies to the whole window
-  }
 
   // ── sessions ──
   async function startStudy({ title, request, context = '', visible = false, kind }) {
@@ -75,12 +71,6 @@ export function activate(ctx) {
       field(t('group'), group, t('groupHelp')),
       field(t('campus'), select(s.campus, [['Paris', 'Paris'], ['Nantes', 'Nantes']], (v) => save({ campus: v }))),
       field(t('year'), select(s.year || 2, [1, 2, 3, 4, 5].map((n) => [String(n), t('yearN', n)]), (v) => save({ year: Number(v) })), t('yearHelp')),
-    ];
-  }
-  function languageFields(s, note) {
-    return [
-      field(t('uiLang'), select(s.language, [['en', 'English'], ['fr', 'Français']], (v) => setLanguage(v)), t('uiLangHelp')),
-      field(t('aiLang'), select(s.aiLanguage, [['auto', t('sameAsApp')], ['en', 'English'], ['fr', 'Français']], async (v) => { await ctx.call('set-profile', { aiLanguage: v }); saved(note); })),
     ];
   }
   function moodleField(s, signal, refresh) {
@@ -126,56 +116,15 @@ export function activate(ctx) {
         const note = el('span', { class: 'dv-saved' });
         root.replaceChildren(
           section(t('profile'), ...profileFields(s, note)),
-          section(t('languages'), ...languageFields(s, note)),
           section(t('connections'), moodleField(s, signal, render), leoField(s, signal, render), scheduleField(s, signal, render)),
           section(t('library'), libraryField(s)),
-          section(t('setup'), field(t('setupAgain'), button({ label: t('runSetup'), variant: 'outline', onClick: async () => { await ctx.call('set-setup', { step: 0, done: false }); ctx.app.openView('home'); } }, signal))),
+          section(t('setup'), field(t('setupAgain'), button({ label: t('runSetup'), variant: 'outline', onClick: async () => { await ctx.call('set-setup', { step: 0, done: false }); runOnboarding(ctx, el, s); } }, signal))),
           note,
         );
       };
       render().catch((e) => root.replaceChildren(el('p', { class: 'dv-muted' }, e.message)));
       return () => root.remove();
   });
-
-  // ── first-time setup ──
-  function setupWizard(root, s, signal, finish) {
-    const steps = [
-      { title: t('w1Title'), body: () => [el('p', {}, t('w1Text')), ...languageFields(s, el('span'))] },
-      { title: t('w2Title'), body: () => [el('p', {}, t('w2Text')), ...profileFields(s, el('span'))] },
-      { title: t('w3Title'), body: (refresh) => [el('p', {}, t('w3Text')), moodleField(s, signal, refresh)] },
-      { title: t('w4Title'), body: (refresh) => [el('p', {}, t('w4Text')), el('ol', { class: 'dv-steps' }, t('w4Steps').map((x) => el('li', {}, x))), scheduleField(s, signal, refresh)] },
-      { title: t('w5Title'), body: (refresh) => [el('p', {}, t('w5Text')), leoField(s, signal, refresh)] },
-      {
-        title: t('w6Title'), body: () => {
-          const box = el('div', { class: 'dv-stack' }, el('p', { class: 'dv-muted' }, t('loading')));
-          ctx.call('models').then((m) => box.replaceChildren(
-            el('p', {}, t('w6Text')),
-            field(t('mainModel'), el('span', { class: m.strong ? 'dv-ok' : 'dv-warn' }, m.strong || t('notSet'))),
-            field(t('cheapModel'), el('span', { class: m.cheap ? 'dv-ok' : 'dv-warn' }, m.cheap || t('notSetCheap'))),
-            (!m.strong || !m.cheap) && el('ol', { class: 'dv-steps' }, t('w6Steps').map((x) => el('li', {}, x))),
-            (!m.strong || !m.cheap) && button({ label: t('openAppSettings'), variant: 'outline', onClick: () => { location.href = '/settings'; } }, signal),
-          )).catch((e) => box.replaceChildren(el('p', { class: 'dv-muted' }, e.message)));
-          return [box];
-        },
-      },
-      { title: t('w7Title'), body: () => [el('p', {}, t('w7Text')), el('ul', { class: 'dv-guide' }, t('guide').map(([h, d]) => el('li', {}, el('strong', {}, h), ` ${d}`)))] },
-    ];
-    let step = Math.min(s.setupStep || 0, steps.length - 1);
-    const go = async (next) => { step = next; await ctx.call('set-setup', { step }); s = await ctx.call('status'); draw(); };
-    const draw = () => {
-      const last = step === steps.length - 1;
-      const nav = el('div', { class: 'dv-inline dv-wizard-nav' },
-        step > 0 && button({ label: t('back'), variant: 'outline', onClick: () => go(step - 1) }, signal),
-        el('span', { class: 'dv-muted dv-push' }, t('stepOf', step + 1, steps.length)),
-        button({ label: last ? t('finish') : t('next2'), onClick: async () => { if (last) { await ctx.call('set-setup', { done: true, step: 0 }); finish(); } else go(step + 1); } }, signal));
-      root.replaceChildren(el('div', { class: 'dv-wizard' },
-        el('div', { class: 'dv-progress' }, steps.map((_, i) => el('span', { class: i <= step ? 'on' : '' }))),
-        el('h1', {}, steps[step].title),
-        ...steps[step].body(async () => { s = await ctx.call('status'); draw(); }),
-        nav));
-    };
-    draw();
-  }
 
   // ── home ──
   const listCard = (title, items, empty, ...extra) => el('section', { class: 'dv-card' }, el('h2', {}, title), items.length ? el('ul', { class: 'dv-list' }, items) : el('p', { class: 'dv-muted' }, empty), ...extra);
@@ -193,7 +142,6 @@ export function activate(ctx) {
         const status = await ctx.call('status');
         if (signal.aborted) return;
         if (status.language !== lang) { try { localStorage.setItem(LANG_KEY, status.language); } catch { /* ignore */ } }
-        if (!status.setupDone) return setupWizard(root, status, signal, render);
         const overview = await ctx.call('overview');
         if (signal.aborted) return;
 
@@ -204,21 +152,23 @@ export function activate(ctx) {
           onChange: (v) => { draft = v; composer.update({ value: v }); },
           onSend: () => startStudy({ request: draft, visible: true }),
         }, { signal });
-        const exams = overview.exams.map((e) => el('li', {}, el('strong', {}, `${fmtDay(e.start)} ${e.start.slice(11)}`), ` ${e.title}`, el('span', { class: 'dv-muted' }, ` · ${when(e.start)}`), button({ label: t('revise'), onClick: () => reviseExam(e) }, signal)));
+        const examItem = (e) => el('li', {}, el('strong', {}, `${fmtDay(e.start)} ${e.start.slice(11)}`), ` ${e.title}`, el('span', { class: 'dv-muted' }, ` · ${when(e.start)}`), button({ label: t('revise'), variant: 'ghost', onClick: () => reviseExam(e) }, signal));
+        const soon = overview.exams.filter((e) => daysUntil(e.start) <= 30), later = overview.exams.filter((e) => daysUntil(e.start) > 30);
+        const laterList = el('ul', { class: 'dv-list dv-later-list', hidden: true }, later.map(examItem));
+        const laterToggle = later.length > 0 && el('button', { class: 'dv-link', 'aria-expanded': 'false', onclick: (ev) => { laterList.hidden = !laterList.hidden; ev.currentTarget.setAttribute('aria-expanded', String(!laterList.hidden)); ev.currentTarget.textContent = laterList.hidden ? t('laterExams', later.length) : t('hideLater'); } }, t('laterExams', later.length));
         const hidden = overview.hiddenDeadlines || [];
         const hiddenList = el('ul', { class: 'dv-list dv-hidden-list', hidden: true }, hidden.map(deadlineItem));
         const hiddenToggle = hidden.length > 0 && el('button', { class: 'dv-link', onclick: () => { hiddenList.hidden = !hiddenList.hidden; } }, t('hiddenFor', hidden.length));
-        const classes = overview.classes.map((c) => el('li', {}, el('strong', {}, `${fmtDay(c.start)} ${c.start.slice(11)}–${(c.end || '').slice(11)}`), ` ${c.title}`, el('span', { class: 'dv-muted' }, ` ${c.type ? `[${c.type}] ` : ''}${c.place}`)));
         const missing = [!status.connected && 'Moodle', !status.hasSchedule && t('schedule')].filter(Boolean);
 
-        root.replaceChildren(
+        // replaceChildren would print a `false` child as text, so drop them first.
+        root.replaceChildren(...[
           el('h1', {}, 'De Vinci'),
           missing.length > 0 && el('section', { class: 'dv-card dv-ask' }, el('p', {}, t('missing', missing.join(', '))), button({ label: t('openSettings'), variant: 'outline', onClick: () => ctx.app.openSettings() }, signal)),
           el('section', { class: 'dv-card' }, el('h2', {}, t('study')), study),
-          listCard(t('exams'), exams, t('noExams')),
+          listCard(t('exams'), soon.map(examItem), overview.exams.length ? t('noExamsSoon') : t('noExams'), laterList, laterToggle),
           listCard(t('deadlines', overview.group), overview.deadlines.map(deadlineItem), overview.deadlineError || t('noDeadlines'), hiddenToggle, hiddenList),
-          listCard(t('soon'), classes, t('noClasses'), el('div', { class: 'dv-inline' }, button({ label: t('openTimetable'), variant: 'outline', onClick: () => ctx.app.openView('timetable') }, signal))),
-        );
+        ].filter(Boolean));
       };
       render().catch((e) => root.replaceChildren(el('p', { class: 'dv-muted' }, e.message)));
       return () => root.remove();
@@ -279,14 +229,16 @@ export function activate(ctx) {
 
   ctx.registerAction({ id: 'open-home', name: 'De Vinci', icon: ICON, run: () => ctx.app.openView('home') });
   ctx.registerAction({ id: 'open-timetable', name: lang === 'fr' ? 'Emploi du temps' : 'Timetable', icon: CAL_ICON, run: () => ctx.app.openView('timetable') });
-  ctx.placeAction({ id: 'home-sidebar', actionId: 'open-home', location: 'sidebar' });
-  ctx.placeAction({ id: 'timetable-sidebar', actionId: 'open-timetable', location: 'sidebar' });
 
   // First launch: land on the setup instead of an empty app.
   ctx.call('status').then((s) => {
     // Reload only once the new language is stored, so this can never loop.
     if (s.language !== lang) { try { localStorage.setItem(LANG_KEY, s.language); location.reload(); } catch { /* storage blocked: stay as is */ } }
-    if (!s.setupDone && ctx.app.pathname() === '/') ctx.app.openView('home');
+    if (s.school) {
+      ctx.placeAction({ id: 'home-sidebar', actionId: 'open-home', location: 'sidebar' });
+      ctx.placeAction({ id: 'timetable-sidebar', actionId: 'open-timetable', location: 'sidebar' });
+    }
+    if (!s.setupDone) runOnboarding(ctx, el, s);
   }).catch(() => {});
 
   // Files the AI actually read go into the library through the native import.

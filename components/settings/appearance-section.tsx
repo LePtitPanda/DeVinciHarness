@@ -46,6 +46,7 @@ import { Hint } from "@/components/ui/hint";
 import { BUNDLED_READING_FONTS, useAppearance } from "./appearance.tsx";
 import { FontMenuList } from "./model-menu";
 import { ThemeCards } from "./theme-cards.tsx";
+import { DevinciLanguageRows } from "./devinci-language.tsx";
 import { CommitInput, SettingsMenuTrigger, SettingsRow, Toggle } from "./controls.tsx";
 
 /** The factory reading family — the DEFAULT row's identity (unset =
@@ -282,6 +283,7 @@ export function AppearanceSection({
 
 	return (
 		<>
+			<div className="mb-5 flex flex-col gap-2"><DevinciLanguageRows /></div>
 			<ThemeCards
 				themes={themes}
 				active={activeTheme}

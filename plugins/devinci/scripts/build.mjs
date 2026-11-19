@@ -12,7 +12,7 @@ try {
 await rm(out, { recursive: true, force: true });
 await mkdir(out, { recursive: true });
 await Promise.all([
-  build({ entryPoints: [path.join(root, 'src/main.js')], outfile: path.join(out, 'main.js'), bundle: true, format: 'esm', platform: 'browser', target: 'es2022' }),
+  build({ entryPoints: [path.join(root, 'src/main.js')], outfile: path.join(out, 'main.js'), bundle: true, format: 'esm', platform: 'browser', target: 'es2022', loader: { '.webp': 'dataurl' } }),
   build({ entryPoints: [path.join(root, 'src/backend.cjs')], outfile: path.join(out, 'backend.cjs'), bundle: true, format: 'cjs', platform: 'node', target: 'node22', external: ['pdfjs-dist'] }),
   ...['manifest.json', 'LICENSE', 'README.md'].map(file => copyFile(path.join(root, file), path.join(out, file))),
   copyFile(path.join(root, 'src/styles.css'), path.join(out, 'styles.css')),

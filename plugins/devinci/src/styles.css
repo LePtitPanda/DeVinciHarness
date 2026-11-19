@@ -57,3 +57,33 @@ button.dv-tt-event:hover { filter: brightness(1.25); }
 .dv-wizard-nav { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
 .dv-push { margin-left: auto; }
 @media (max-width: 560px) { .dv-field { grid-template-columns: 1fr; } .dv-label { padding-top: 0; } }
+.dv-later-list { margin-top: 6px; }
+/* first-launch setup chat: covers the whole app (sidebar included) until done */
+.dv-ob { position: fixed; inset: 0; z-index: 2147483000; background: var(--background); color: var(--foreground); display: flex; justify-content: center; }
+.dv-ob-col { width: 100%; max-width: 680px; display: flex; flex-direction: column; padding: 0 16px; box-sizing: border-box; }
+.dv-ob-log { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 40px 0 16px; }
+.dv-ob-bot { align-self: flex-start; max-width: 88%; display: flex; flex-direction: column; gap: 8px; line-height: 1.55; animation: dv-ob-in 0.25s ease-out; }
+.dv-ob-bot p { margin: 0; }
+.dv-ob-bot a { color: inherit; text-decoration: underline; }
+.dv-ob-me { align-self: flex-end; max-width: 75%; padding: 8px 14px; border-radius: 16px; background: var(--accent); animation: dv-ob-in 0.2s ease-out; }
+.dv-ob-muted { color: var(--muted-foreground); font-size: 12px; }
+.dv-ob-steps { list-style: decimal; margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 6px; }
+.dv-ob-steps svg { display: inline-block; vertical-align: middle; width: 20px; height: 20px; }
+.dv-ob-shot { width: 100%; border-radius: 10px; border: 1px solid var(--border); }
+.dv-ob-dock { padding: 12px 0 24px; display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border); min-height: 48px; }
+.dv-ob-choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.dv-ob-choice { font: inherit; font-size: 14px; color: var(--foreground); background: transparent; border: 1px solid var(--border); border-radius: 999px; padding: 6px 14px; cursor: pointer; transition: background 0.15s; }
+.dv-ob-choice:hover, .dv-ob-choice:focus-visible { background: var(--accent); outline: none; }
+.dv-ob-field { display: flex; gap: 8px; align-items: center; border: 1px solid var(--border); border-radius: 12px; padding: 6px 6px 6px 12px; }
+.dv-ob-input { flex: 1; min-width: 0; font: inherit; color: var(--foreground); background: transparent; border: 0; outline: none; }
+.dv-ob-send { font: inherit; width: 34px; height: 34px; border-radius: 8px; border: 0; cursor: pointer; background: var(--foreground); color: var(--background); }
+.dv-ob-graph { width: 100%; max-width: 520px; }
+.dv-ob-graph line { stroke-width: 1.5; stroke-dasharray: 160; stroke-dashoffset: 160; animation: dv-ob-draw 0.6s ease-out forwards; }
+.dv-ob-graph line.on { stroke: #3fb950; } .dv-ob-graph line.off { stroke: var(--border); }
+.dv-ob-graph circle.on { fill: #3fb950; } .dv-ob-graph circle.off { fill: var(--muted-foreground); }
+.dv-ob-graph circle.hub { fill: var(--foreground); }
+.dv-ob-graph text { font-size: 11px; fill: var(--foreground); } .dv-ob-graph text.hub-label { fill: var(--background); font-weight: 700; font-size: 13px; }
+@keyframes dv-ob-in { from { opacity: 0; transform: translateY(4px); } }
+@keyframes dv-ob-draw { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { .dv-ob-bot, .dv-ob-me, .dv-ob-graph line { animation: none; stroke-dashoffset: 0; } }
+ul.dv-ob-steps { list-style: disc; }
