@@ -380,7 +380,7 @@ export function createPluginHost(deps: PluginHostDependencies) {
 				}
 				continue;
 			}
-			candidate.info.enabled = state.enabled[id] === true;
+			candidate.info.enabled = state.enabled[id] ?? id === "devinci"; // Fork: the school plugin starts enabled
 			packages.set(id, candidate);
 			if (candidate.info.enabled && !candidate.blocked) await activate(candidate);
 		}

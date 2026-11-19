@@ -32,6 +32,7 @@ const { createSubscriptions, loadSubscriptionSDK } = require("./subscriptions.cj
 const { attachSubscriptionChild, subscriptionControl } = require("./subscription-ipc.cjs");
 const { desktopAPIHeaders } = require("./desktop-api.cjs");
 const { openWebSubscriptionBrowser } = require("./web-subscription-browser.cjs");
+const { createDevinci } = require("./devinci.cjs"); // Fork: Moodle sign-in for the devinci plugin
 const { randomBytes } = require("node:crypto");
 // Fork: main's own Node fetches (OAuth, token refresh, model lists) also trust the OS store; see NODE_USE_SYSTEM_CA below.
 try { const tls = require("node:tls"); tls.setDefaultCACertificates([...new Set([...tls.getCACertificates("default"), ...tls.getCACertificates("system")])]); } catch { /* older Node: bundled CAs only */ }
@@ -45,7 +46,7 @@ const path = require("node:path");
 // renderer owns the number; this is the IPC widen target).
 const SIDEBAR_AUTOCLOSE = 928;
 
-const PRODUCT_NAME = "LearnHarness";
+const PRODUCT_NAME = "DeVinciHarness"; // Fork: separate app, own userData, installs beside LearnHarness
 
 // APP NAME → userData (owner, 2026-10-10): the Application Support dir is
 // exactly "LearnHarness" in dev AND packaged. Packaged Electron would
@@ -154,6 +155,8 @@ let chatgpt = null;
 let chatgptChild = null;
 let subscriptions = null;
 let subscriptionChild = null;
+let devinci = null;
+let devinciDetach = null;
 // Per-launch request capability, never OAuth tokens and never renderer state.
 let desktopAPISecret = null;
 let reopenWindow = null;
@@ -247,6 +250,8 @@ function startServer(port) {
 		serverProcess = child;
 		chatgptChild = attachChatGPTChild(child, chatgpt);
 		subscriptionChild = attachSubscriptionChild(child, subscriptions);
+		devinci ??= createDevinci(app.getPath("userData"));
+		devinciDetach = devinci.attach(child);
 		const fwd = (buf) => buf.toString().trimEnd().split("\n").forEach((l) => l && log(`server: ${l}`));
 		child.stdout.on("data", fwd);
 		child.stderr.on("data", fwd);
@@ -257,6 +262,8 @@ function startServer(port) {
 			chatgptChild = null;
 			subscriptionChild?.dispose();
 			subscriptionChild = null;
+			devinciDetach?.();
+			devinciDetach = null;
 			chatgpt?.close();
 			subscriptions?.close();
 		});
