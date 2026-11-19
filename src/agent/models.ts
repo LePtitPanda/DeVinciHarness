@@ -22,6 +22,7 @@ import { createClaudeCodeProvider } from "./claude-code/provider.ts";
 import { streamClaudeCode } from "./claude-code/stream.ts";
 import { nativeSubscriptionId, nativeSubscriptionModel } from "./subscription-bridge.ts";
 import { nativeSubscriptionStream } from "./subscription-stream.ts";
+import { nvidiaModels, refreshNvidiaModels } from "./nvidia-live.ts";
 
 /** App identity is immutable and shared by Models and every native Agent.
  * Agent's default Pi attribution otherwise overrides the Models identity. */
@@ -89,12 +90,29 @@ export function piModels() {
 			// replace its lazy forwarding; preserve the native factory's auth/catalog.
 			collection.setProvider(provider.id === "amazon-bedrock"
 				? { ...provider, ...lazyApi(() => import("@earendil-works/pi-ai/api/bedrock-converse-stream")) }
-				: provider);
+				: provider.id === "nvidia" ? withLiveNvidia(provider) : provider);
 		}
 		collection.setProvider(createClaudeCodeProvider(streamClaudeCode));
 	}
 	providerSource?.sync(collection);
 	return collection;
+}
+
+// Fork: NVIDIA's chat list comes from its live /v1/models once a key is present.
+let nvidiaBundled: readonly Model<Api>[] = [];
+function withLiveNvidia<T extends { getModels(): readonly Model<Api>[]; getAllModels?(): readonly unknown[] }>(provider: T): T {
+	const bundled = provider.getModels();
+	nvidiaBundled = bundled;
+	return {
+		...provider,
+		getModels: () => nvidiaModels(bundled),
+		// Keep NVIDIA's non-chat (image/classifier) entries as they were.
+		getAllModels: () => [...nvidiaModels(bundled), ...(provider.getAllModels?.() ?? []).filter((m) => !bundled.includes(m as Model<Api>))],
+	};
+}
+export function refreshNvidiaCatalog(key: string | undefined): Promise<void> {
+	piModels();
+	return refreshNvidiaModels(nvidiaBundled, key);
 }
 
 /** OpenRouter API key (BYOK); tests never read this — they inject engines. */

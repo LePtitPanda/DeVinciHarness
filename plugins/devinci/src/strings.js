@@ -34,7 +34,7 @@ export const STRINGS = {
     w5Title: 'Past exams (optional)', w5Text: 'LeoData has previous years’ exams. Connect it so the AI can practise with you on real exam questions.',
     w6Title: 'AI models', w6Text: 'The main model teaches you. The cheap model only searches your courses for the right files, to save cost.',
     mainModel: 'Main model', cheapModel: 'Cheap model', notSet: 'Not set — required', notSetCheap: 'Not set — the main model will be used',
-    w6Steps: ['Settings → Providers: connect OpenAI Codex (your ChatGPT account) or add an API key.', 'Settings → Agent: pick your main model as Strong and a cheaper one as Cheap.', 'Come back to De Vinci in the sidebar; setup resumes here.'],
+    w6Steps: ['Settings → Providers: connect OpenAI Codex (your ChatGPT account) or add an API key.', 'No paid plan? NVIDIA is free: on build.nvidia.com create an account, open a model and click “Generate API Key”, then add it under Settings → Providers → NVIDIA. Good free models: moonshotai/kimi-k3.1-pro or nvidia/nemotron-3-ultra-550b-a55b (main), nvidia/nemotron-3.5-bolt-e4b (cheap).', 'Settings → Agent: pick your main model as Strong and a cheaper one as Cheap.', 'Come back to De Vinci in the sidebar; setup resumes here.'],
     openAppSettings: 'Open app settings',
     w7Title: 'You’re set', w7Text: 'How to use it:',
     guide: [
@@ -78,7 +78,7 @@ export const STRINGS = {
     w5Title: 'Annales (facultatif)', w5Text: 'LeoData contient les examens des années précédentes. Connecte-le pour t’entraîner avec l’IA sur de vrais sujets.',
     w6Title: 'Modèles d’IA', w6Text: 'Le modèle principal t’enseigne. Le modèle économique cherche seulement les bons fichiers dans tes cours, pour réduire le coût.',
     mainModel: 'Modèle principal', cheapModel: 'Modèle économique', notSet: 'Non défini — requis', notSetCheap: 'Non défini — le modèle principal sera utilisé',
-    w6Steps: ['Paramètres → Fournisseurs : connecte OpenAI Codex (ton compte ChatGPT) ou ajoute une clé API.', 'Paramètres → Agent : choisis ton modèle principal en « Puissant » et un modèle moins cher en « Économique ».', 'Reviens sur De Vinci dans la barre latérale ; la configuration reprend ici.'],
+    w6Steps: ['Paramètres → Fournisseurs : connecte OpenAI Codex (ton compte ChatGPT) ou ajoute une clé API.', 'Pas d’abonnement payant ? NVIDIA est gratuit : sur build.nvidia.com, crée un compte, ouvre un modèle et clique sur « Generate API Key », puis ajoute-la dans Paramètres → Fournisseurs → NVIDIA. Bons modèles gratuits : moonshotai/kimi-k3.1-pro ou nvidia/nemotron-3-ultra-550b-a55b (principal), nvidia/nemotron-3.5-bolt-e4b (économique).', 'Paramètres → Agent : choisis ton modèle principal en « Puissant » et un modèle moins cher en « Économique ».', 'Reviens sur De Vinci dans la barre latérale ; la configuration reprend ici.'],
     openAppSettings: 'Ouvrir les paramètres de l’app',
     w7Title: 'C’est prêt', w7Text: 'Comment t’en servir :',
     guide: [

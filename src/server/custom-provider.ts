@@ -14,8 +14,7 @@ import { CUSTOM_PROVIDER } from "../core/auth-keys.ts";
 import { customBindingMatches } from "../core/custom-provider-auth.ts";
 import { customAuthState, customKeyAuthorized } from "./custom-provider-auth.ts";
 import {
-	CUSTOM_MODEL_DEFAULT_CONTEXT_WINDOW,
-	CUSTOM_MODEL_DEFAULT_MAX_TOKENS,
+	customDefaultSizes,
 	customProviderUsable,
 	normalizeBaseUrl,
 	type CustomModel,
@@ -81,8 +80,8 @@ function toPiModel(
 		reasoning: pin?.reasoning ?? Boolean(model.reasoning),
 		input: model.image ? ["text", "image"] : ["text"],
 		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-		contextWindow: pin?.context ?? model.context ?? CUSTOM_MODEL_DEFAULT_CONTEXT_WINDOW,
-		maxTokens: pin?.maxTokens ?? model.maxTokens ?? CUSTOM_MODEL_DEFAULT_MAX_TOKENS,
+		contextWindow: pin?.context ?? model.context ?? customDefaultSizes(baseUrl).context,
+		maxTokens: pin?.maxTokens ?? model.maxTokens ?? customDefaultSizes(baseUrl).maxTokens,
 		type: "chat",
 	};
 }

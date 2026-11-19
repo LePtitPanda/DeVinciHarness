@@ -26,8 +26,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
 	AUTH_KEYS,
-	CUSTOM_MODEL_DEFAULT_CONTEXT_WINDOW,
-	CUSTOM_MODEL_DEFAULT_MAX_TOKENS,
+	customDefaultSizes,
 	CUSTOM_PROVIDER,
 	normalizeBaseUrl,
 	type AuthKeyStatus,
@@ -982,14 +981,14 @@ function CustomEndpointEditor({
 								<div key={m.id} className="flex items-center gap-2" data-testid={pinTestid("custom-pin-row", m.id)}>
 									<span className="min-w-0 flex-1 truncate font-mono text-[11px] text-foreground" title={m.id}>
 										{m.id}
-										<span className="block text-[10px] text-muted-foreground">Context: {d.context.trim() ? "user pin" : m.context ? `reported ${m.context}` : `fallback ${CUSTOM_MODEL_DEFAULT_CONTEXT_WINDOW}`} · Output: {d.maxTokens.trim() ? "user pin" : m.maxTokens ? `reported ${m.maxTokens}` : `fallback ${CUSTOM_MODEL_DEFAULT_MAX_TOKENS}`}</span>
+										<span className="block text-[10px] text-muted-foreground">Context: {d.context.trim() ? "user pin" : m.context ? `reported ${m.context}` : `fallback ${customDefaultSizes(baseUrl0).context}`} · Output: {d.maxTokens.trim() ? "user pin" : m.maxTokens ? `reported ${m.maxTokens}` : `fallback ${customDefaultSizes(baseUrl0).maxTokens}`}</span>
 									</span>
 									<input
 										type="text"
 										inputMode="numeric"
 										value={d.context}
 										onChange={(e) => setDraft(m, { context: e.target.value })}
-										placeholder={String(m.context ?? CUSTOM_MODEL_DEFAULT_CONTEXT_WINDOW)}
+										placeholder={String(m.context ?? customDefaultSizes(baseUrl0).context)}
 										aria-label={`${m.id} context window in tokens`}
 										data-testid={pinTestid("custom-pin-context", m.id)}
 										disabled={pinsBusy}
@@ -1000,7 +999,7 @@ function CustomEndpointEditor({
 										inputMode="numeric"
 										value={d.maxTokens}
 										onChange={(e) => setDraft(m, { maxTokens: e.target.value })}
-										placeholder={String(m.maxTokens ?? CUSTOM_MODEL_DEFAULT_MAX_TOKENS)}
+										placeholder={String(m.maxTokens ?? customDefaultSizes(baseUrl0).maxTokens)}
 										aria-label={`${m.id} max output tokens`}
 										data-testid={pinTestid("custom-pin-maxtokens", m.id)}
 										disabled={pinsBusy}
@@ -1041,7 +1040,7 @@ function CustomEndpointEditor({
 				</div>
 			)}
 			<div className="flex flex-col gap-1 text-[11px] text-muted-foreground" data-testid="custom-help">
-				{!setup && models.length > 0 && <p data-testid="custom-budget-help">Budget pins do not resize backend context. Blank uses reported limits, then fallback (8192 context / 4096 output). Custom pricing is unknown.</p>}
+				{!setup && models.length > 0 && <p data-testid="custom-budget-help">Budget pins do not resize backend context. Blank uses reported limits, then fallback ({customDefaultSizes(baseUrl0).context} context / {customDefaultSizes(baseUrl0).maxTokens} output; 8192/4096 for local servers). Custom pricing is unknown.</p>}
 				<p data-testid="custom-reasoning-help">Reasoning support is a capability declaration. The effort picker’s Off may not disable a custom backend’s default thinking.</p>
 			</div>
 			{(error || pinsError) && <button type="button" data-testid="custom-reload" onClick={() => void onReload()} className="text-left text-xs underline">Reload configuration</button>}

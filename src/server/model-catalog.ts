@@ -19,7 +19,7 @@
 
 import { clampThinkingLevel, getSupportedThinkingLevels, type Api, type Model } from "@earendil-works/pi-ai";
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
-import { piModels } from "../agent/models.ts";
+import { piModels, refreshNvidiaCatalog } from "../agent/models.ts";
 import { customProviderAvailable } from "./custom-provider.ts";
 import { chatGPTConnected, chatGPTModel, chatGPTModels, refreshChatGPTModels } from "../agent/chatgpt-bridge.ts";
 import { NATIVE_SUBSCRIPTIONS } from "../core/contracts/subscriptions.ts";
@@ -29,6 +29,7 @@ export async function refreshConnectionCatalog(provider?: string): Promise<void>
 	await Promise.all([
 		!provider || provider === "chatgpt" ? refreshChatGPTModels(piModels().getModels("openai").filter((m): m is Model<"openai-responses"> => m.api === "openai-responses")) : Promise.resolve(),
 		!provider || nativeSubscriptionId(provider) ? refreshSubscriptionModels() : Promise.resolve(),
+		!provider || provider === "nvidia" ? refreshNvidiaCatalog(keyValue("NVIDIA_API_KEY")) : Promise.resolve(),
 	]);
 }
 function connectionModel(provider: string, id: string): Model<Api> | undefined {

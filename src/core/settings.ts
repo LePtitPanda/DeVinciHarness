@@ -229,6 +229,22 @@ export interface ModelsSettings {
 /** Budget fallbacks only; custom endpoint pricing is unknown. */
 export const CUSTOM_MODEL_DEFAULT_CONTEXT_WINDOW = 8192;
 export const CUSTOM_MODEL_DEFAULT_MAX_TOKENS = 4096;
+/** Fork: cloud endpoints (NVIDIA, Groq, Mistral…) rarely report sizes, and 8k breaks
+ *  every real session there. Only local/private servers keep the small fallback. */
+export const CUSTOM_REMOTE_DEFAULT_CONTEXT_WINDOW = 131_072;
+export const CUSTOM_REMOTE_DEFAULT_MAX_TOKENS = 16_384;
+export function customDefaultSizes(baseUrl: string): { context: number; maxTokens: number } {
+	let local = true;
+	try {
+		const { protocol, hostname } = new URL(baseUrl);
+		const host = hostname.replace(/^\[|\]$/g, "");
+		local = protocol !== "https:" || host === "localhost" || host.endsWith(".local") || host.endsWith(".localhost") || host === "::1"
+			|| /^(127|10)\./.test(host) || /^192\.168\./.test(host) || /^172\.(1[6-9]|2\d|3[01])\./.test(host) || /^(fc|fd)/i.test(host);
+	} catch { /* unparsable: treat as local */ }
+	return local
+		? { context: CUSTOM_MODEL_DEFAULT_CONTEXT_WINDOW, maxTokens: CUSTOM_MODEL_DEFAULT_MAX_TOKENS }
+		: { context: CUSTOM_REMOTE_DEFAULT_CONTEXT_WINDOW, maxTokens: CUSTOM_REMOTE_DEFAULT_MAX_TOKENS };
+}
 
 /** Custom budgets accept every positive integer, including small output caps. */
 export const CUSTOM_MODEL_PIN_FLOOR = 1;
