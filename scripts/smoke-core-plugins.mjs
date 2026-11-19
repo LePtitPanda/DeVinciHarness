@@ -33,7 +33,9 @@ export async function verifyCorePlugins({ root, standalone, dataDirectory, url }
 		assert.equal(info.enabled, on, id); if (!on) assert.equal(info.status, "disabled", JSON.stringify(info));
 		assert.equal(fs.existsSync(path.join(dataDirectory, "plugins", id)), false, "core code must not be installed into user data");
 	}
-	assert.equal(fs.existsSync(path.join(dataDirectory, "core-plugin-data")), false, "disabled fresh discovery creates no core records");
+	const coreData = path.join(dataDirectory, "core-plugin-data");
+	// fork: only the enabled-by-default devinci plugin may have a record.
+	assert.deepEqual(fs.existsSync(coreData) ? fs.readdirSync(coreData).filter((d) => d !== "devinci") : [], [], "disabled fresh discovery creates no core records");
 	const shadow = path.join(dataDirectory, "plugins", ids[0]);
 	fs.mkdirSync(path.join(shadow, "dist"), { recursive: true });
 	fs.writeFileSync(path.join(shadow, "dist", "manifest.json"), "{invalid shadow must never substitute for core}");
