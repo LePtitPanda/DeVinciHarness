@@ -51,8 +51,31 @@ function tryParse(raw: string): unknown {
 	try {
 		return JSON.parse(raw) as unknown;
 	} catch {
-		return undefined;
+		try {
+			return JSON.parse(escapeLatexBackslashes(raw)) as unknown;
+		} catch {
+			return undefined;
+		}
 	}
+}
+
+/** Fork: models often JSON-encode an array whose strings hold LaTeX (`$\infty$`,
+ *  `\frac`) with single backslashes, which JSON rejects (`\i`) or silently mangles
+ *  (`\f` = form feed). Used only after a plain parse failed: a backslash that cannot
+ *  start a JSON escape, or starts a LaTeX command (`\frac`, `\nabla`, `\times`…),
+ *  becomes a literal backslash. `\n` before a capital/space stays a newline. */
+export function escapeLatexBackslashes(raw: string): string {
+	let out = "";
+	for (let i = 0; i < raw.length; i++) {
+		const c = raw[i];
+		if (c !== "\\") { out += c; continue; }
+		const next = raw[i + 1] ?? "";
+		if (next === "\\" || next === "\"" || next === "/") { out += c + next; i++; continue; }
+		const escape = /[bfnrt]/.test(next) && !/[a-z]/.test(raw[i + 2] ?? "");
+		const unicode = next === "u" && /^[0-9a-fA-F]{4}$/.test(raw.slice(i + 2, i + 6));
+		out += escape || unicode ? c : "\\\\";
+	}
+	return out;
 }
 
 export function healEncodedArguments(
