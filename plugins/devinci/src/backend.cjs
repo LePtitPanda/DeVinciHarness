@@ -108,7 +108,9 @@ function activate(ctx) {
   }
 
   // ── course files ──
-  const fileKey = (url) => crypto.createHash('sha1').update(url).digest('hex').slice(0, 16);
+  // The same Moodle file can arrive with or without ?forcedownload=1: one identity per file.
+  const canonical = (url) => { try { const u = new URL(url); u.search = ''; return u.href; } catch { return String(url); } };
+  const fileKey = (url) => crypto.createHash('sha1').update(canonical(url)).digest('hex').slice(0, 16);
   async function courseFile(url, signal) {
     const key = fileKey(url), cached = fs.readdirSync(path.join(dir, 'files')).find((f) => f.startsWith(`${key}-`) && !f.endsWith('.txt'));
     if (cached) return { bytes: fs.readFileSync(path.join(dir, 'files', cached)), name: cached.slice(key.length + 1), file: path.join(dir, 'files', cached) };
@@ -323,7 +325,7 @@ function activate(ctx) {
     return { name, base64: bytes.toString('base64') };
   });
   ctx.handle('claim-import', async (input) => {
-    const url = String(input?.url ?? ''), state = readState(), imported = state.imported || [];
+    const url = canonical(String(input?.url ?? '')), state = readState(), imported = (state.imported || []).map(canonical);
     if (state.autoLibrary === false || imported.includes(url)) return { import: false };
     writeState({ imported: [...imported, url] });
     return { import: true };
