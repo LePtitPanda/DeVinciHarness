@@ -361,7 +361,9 @@ export const streamdownPlugins = {
 // partial tag and deletes the remaining source before math can tokenize.
 // Preserve that text (unfinished prose HTML may show literally); Streamdown's
 // separate sanitization/hardening and all other Markdown repairs stay enabled.
-export const streamdownRemend = { htmlTags: false };
+// Fork: no link completion. French interval notation like ]0,1[ has an unclosed "[",
+// which remend turned into "](streamdown:incomplete-link)" on finished text.
+export const streamdownRemend = { htmlTags: false, links: false, images: false };
 
 // Model output must not load remote images: a rendered
 // ![x](https://host/?d=...) sends data out with no click. Streamdown's

@@ -77,7 +77,8 @@ for (const [name, surface] of Object.entries(surfaces)) describe(`streaming math
 		assert.equal(bold.querySelector("strong")?.textContent, "bold TAIL");
 		const link = documentFor(surface("[partial TAIL"));
 		assert.ok(link.body.textContent.includes("partial TAIL"));
-		assert.ok(link.body.textContent.includes("[blocked]"), "the incomplete-link placeholder is still hardened");
+		assert.ok(!link.body.textContent.includes("[blocked]"), "fork: unclosed [ stays text (French intervals like ]0,1[)");
+		assert.ok(!documentFor(surface("on ]0,1[, for every x TAIL")).body.textContent.includes("incomplete-link"));
 	});
 
 	it("still removes script/event attributes and blocks javascript links", () => {

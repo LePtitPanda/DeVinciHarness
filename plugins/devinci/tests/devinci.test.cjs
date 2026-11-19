@@ -56,3 +56,17 @@ test('sign-in: accepts only a launch result signed for this passport', () => {
   assert.equal(parseLaunchUrl(url(sig), passport), token);
   assert.throws(() => parseLaunchUrl(url(sig), '99999'), /could not be verified/);
 });
+
+test('groups: hide deadlines that clearly name another TD group or campus', () => {
+  const { otherGroup } = require('../src/groups.cjs');
+  const hide = (n) => otherGroup(n, 'D', 'Paris');
+  assert.equal(hide('TD11-12 GR-D doit être rendu'), false);
+  for (const n of ['TD11-12_FTG', 'TD_9-19_FTI', 'TD7_8_ Gp J', 'Dépôt TD7-8 Gp G', 'TD 11-12 Gr-F', 'TD 1-2 Nantes B']) assert.equal(hide(n), true, n);
+  for (const n of ['Dépôt livrable 3', 'Programme final', 'Rendu graphe A*']) assert.equal(hide(n), false, n);
+  assert.equal(otherGroup('TD7_8_ Gp J', '', 'Paris'), false, 'no group set: show everything from this campus');
+});
+
+test('moodle: entity-encoded names are decoded', () => {
+  const { decodeEntities } = require('../src/moodle.cjs');
+  assert.equal(decodeEntities('Algorithmique &amp; POO'), 'Algorithmique & POO');
+});

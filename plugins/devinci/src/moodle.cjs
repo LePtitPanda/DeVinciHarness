@@ -48,7 +48,8 @@ function createMoodle({ getToken, fetchImpl = fetch }) {
     call,
     async courses(signal) {
       const list = await call('core_enrol_get_users_courses', { userid: await me(signal) }, signal);
-      return list.map((c) => ({ id: c.id, name: c.fullname, short: c.shortname, lastAccess: c.lastaccess }));
+      const day = (t) => (t ? new Date(t * 1000).toISOString().slice(0, 10) : '');
+      return list.map((c) => ({ id: c.id, name: decodeEntities(c.fullname), short: decodeEntities(c.shortname), start: day(c.startdate), end: day(c.enddate), past: !!c.enddate && c.enddate * 1000 < Date.now() }));
     },
     async contents(courseId, signal) {
       return call('core_course_get_contents', { courseid: courseId }, signal);
@@ -56,7 +57,7 @@ function createMoodle({ getToken, fetchImpl = fetch }) {
     async deadlines(days, signal) {
       const from = Math.floor(Date.now() / 1000);
       const data = await call('core_calendar_get_action_events_by_timesort', { timesortfrom: from, timesortto: from + days * 86400, limitnum: 50 }, signal);
-      return (data.events || []).map((e) => ({ name: e.name, course: e.course?.fullname ?? '', due: new Date(e.timesort * 1000).toISOString(), url: e.url }));
+      return (data.events || []).map((e) => ({ name: decodeEntities(e.name), course: decodeEntities(e.course?.fullname ?? ''), due: new Date(e.timesort * 1000).toISOString(), url: e.url }));
     },
     async announcements(courseIds, perForum, signal) {
       const forums = await call('mod_forum_get_forums_by_courses', { courseids: courseIds }, signal);
@@ -84,10 +85,12 @@ function createMoodle({ getToken, fetchImpl = fetch }) {
   };
 }
 
-function stripHtml(html) {
-  return String(html).replace(/<br\s*\/?>|<\/p>|<\/li>/gi, '\n').replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"')
-    .replace(/\n{3,}/g, '\n\n').trim();
+function decodeEntities(text) {
+  return String(text).replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&');
 }
 
-module.exports = { createMoodle, flatten, stripHtml, SITE, FILE_PREFIX, READ_ONLY };
+function stripHtml(html) {
+  return decodeEntities(String(html).replace(/<br\s*\/?>|<\/p>|<\/li>/gi, '\n').replace(/<[^>]+>/g, '')).replace(/\n{3,}/g, '\n\n').trim();
+}
+
+module.exports = { createMoodle, flatten, stripHtml, decodeEntities, SITE, FILE_PREFIX, READ_ONLY };
