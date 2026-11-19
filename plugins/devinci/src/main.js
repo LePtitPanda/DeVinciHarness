@@ -1,53 +1,16 @@
-// De Vinci home page: a lightweight hub (no chat, no model calls) that shows
-// exams, deadlines and classes, and starts ordinary LearnHarness sessions.
+// De Vinci plugin frontend: home hub (no chat, no model calls), timetable, settings page,
+// first-time setup, and whole-app French interface.
+import { STRINGS } from './strings.js';
+import { startTranslator } from './translate.js';
+import FR_APP from './i18n/fr.json';
+
 const ICON = '<svg viewBox="60 55 180 192" fill="currentColor"><path d="M235,85.7l-34.4,67c0,0-32.8-51.1-16.2-80.5c14.1-21.9,34.7-11.8,37.6-9.4C230.1,67.6,235,76.3,235,85.7z"/><path d="M159.9,178.9L103,68.6H65l89.4,173.1l0,0C166.7,232.8,172.1,202.5,159.9,178.9z"/></svg>';
 const CAL_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>';
 const DAY_START = 8, DAY_END = 21, HOUR_PX = 52;
 // Sessions started by a button carry this invisible prefix; the chat hides that opening brief.
 const HIDDEN = '⁣';
-
-const STRINGS = {
-  en: {
-    loading: 'Loading…', study: 'What do you want to study?', studyPh: 'I want to study… (e.g. matrices for the Algèbre linéaire exam)',
-    exams: 'Upcoming exams', noExams: 'No exams found. Import your schedule below.', revise: 'Revise',
-    today: 'today', tomorrow: 'tomorrow', inDays: (d) => `in ${d} days`,
-    deadlines: (g) => `Moodle deadlines (30 days${g ? `, group ${g}` : ''})`, noDeadlines: 'Nothing due, or Moodle is not connected.',
-    hiddenFor: (n) => `${n} hidden for other groups/campuses (show)`,
-    soon: 'Today & tomorrow', noClasses: 'No classes.', openTimetable: 'Open timetable',
-    askGroup: 'Which TD group are you in?', askGroupWhy: 'Used to hide Moodle deadlines meant for other groups.',
-    settings: 'Settings & connections', group: 'TD group', campus: 'Campus', year: 'Year', uiLang: 'Language', aiLang: 'AI language', sameAsApp: 'Same as language', save: 'Save',
-    groupErr: 'Enter your TD group as one letter, e.g. D.',
-    moodleOn: 'Moodle: connected', moodleOff: 'Moodle: not connected', connect: 'Connect', disconnect: 'Disconnect',
-    leoOn: 'LeoData (past exams): connected', leoOff: 'LeoData (past exams): not connected',
-    schedOn: 'Schedule: imported', schedOff: 'Schedule: not imported', icsSaved: 'iCal link saved (paste a new one to replace)', icsPh: 'Paste your iCal link (https://ical.devinci.me/…)',
-    saveLink: 'Save link', orFile: 'or import a downloaded .ics file:', loaded: (n) => `${n} events loaded.`,
-    autoLib: ' Add Moodle files the AI reads to my library (runs the usual import, which uses your model)',
-    timetable: 'Timetable', weekOf: (d) => `Week of ${d}`, prev: '← Previous', thisWeek: 'This week', next: 'Next →',
-    mReviseExam: 'Revise for this exam', mPastExams: 'Practise with past exams', mScope: 'What does this exam cover?',
-    mRevise: (c) => `Revise ${c}`, mPrepare: 'Prepare for this class', mRecap: 'Recap this class', mQuiz: 'Quiz me on this course',
-    tRevision: 'revision', tPast: 'past exams', tScope: 'exam scope', tPrepare: 'preview', tRecap: 'recap', tQuiz: 'quiz',
-  },
-  fr: {
-    loading: 'Chargement…', study: 'Que veux-tu réviser ?', studyPh: 'Je veux étudier… (ex. les matrices pour l’examen d’Algèbre linéaire)',
-    exams: 'Examens à venir', noExams: 'Aucun examen trouvé. Importe ton emploi du temps plus bas.', revise: 'Réviser',
-    today: 'aujourd’hui', tomorrow: 'demain', inDays: (d) => `dans ${d} jours`,
-    deadlines: (g) => `Rendus Moodle (30 jours${g ? `, groupe ${g}` : ''})`, noDeadlines: 'Rien à rendre, ou Moodle n’est pas connecté.',
-    hiddenFor: (n) => `${n} masqués (autres groupes/campus) — afficher`,
-    soon: 'Aujourd’hui et demain', noClasses: 'Pas de cours.', openTimetable: 'Ouvrir l’emploi du temps',
-    askGroup: 'Dans quel groupe de TD es-tu ?', askGroupWhy: 'Sert à masquer les rendus Moodle des autres groupes.',
-    settings: 'Réglages et connexions', group: 'Groupe TD', campus: 'Campus', year: 'Année', uiLang: 'Langue', aiLang: 'Langue de l’IA', sameAsApp: 'Comme la langue', save: 'Enregistrer',
-    groupErr: 'Indique ton groupe de TD en une lettre, ex. D.',
-    moodleOn: 'Moodle : connecté', moodleOff: 'Moodle : non connecté', connect: 'Connecter', disconnect: 'Déconnecter',
-    leoOn: 'LeoData (annales) : connecté', leoOff: 'LeoData (annales) : non connecté',
-    schedOn: 'Emploi du temps : importé', schedOff: 'Emploi du temps : non importé', icsSaved: 'Lien iCal enregistré (colle un nouveau lien pour le remplacer)', icsPh: 'Colle ton lien iCal (https://ical.devinci.me/…)',
-    saveLink: 'Enregistrer le lien', orFile: 'ou importe un fichier .ics téléchargé :', loaded: (n) => `${n} événements chargés.`,
-    autoLib: ' Ajouter à ma bibliothèque les fichiers Moodle lus par l’IA (import habituel, qui utilise ton modèle)',
-    timetable: 'Emploi du temps', weekOf: (d) => `Semaine du ${d}`, prev: '← Précédente', thisWeek: 'Cette semaine', next: 'Suivante →',
-    mReviseExam: 'Réviser pour cet examen', mPastExams: 'S’entraîner sur les annales', mScope: 'Que couvre cet examen ?',
-    mRevise: (c) => `Réviser ${c}`, mPrepare: 'Préparer ce cours', mRecap: 'Récapituler ce cours', mQuiz: 'Me tester sur ce cours',
-    tRevision: 'révision', tPast: 'annales', tScope: 'programme de l’examen', tPrepare: 'préparation', tRecap: 'récap', tQuiz: 'quiz',
-  },
-};
+const LANG_KEY = 'dv.lang';
+const STUDY_TAIL = 'Use the school tools to find the matching Moodle course and files, and teach from the actual course material.';
 
 function el(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);
@@ -55,90 +18,167 @@ function el(tag, attrs = {}, ...children) {
     if (k === 'class') node.className = v;
     else if (k === 'style') node.style.cssText = v;
     else if (k.startsWith('on')) node.addEventListener(k.slice(2), v);
-    else node.setAttribute(k, v);
+    else if (v !== undefined && v !== false) node.setAttribute(k, v === true ? '' : v);
   }
-  for (const c of children.flat()) if (c != null) node.append(c instanceof Node ? c : document.createTextNode(String(c)));
+  for (const c of children.flat()) if (c != null && c !== false) node.append(c instanceof Node ? c : document.createTextNode(String(c)));
   return node;
 }
 const daysUntil = (s) => Math.round((Date.parse(`${s.slice(0, 10)}T00:00:00`) - Date.parse(new Date().toDateString())) / 86400e3);
 const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const monday = (d) => { const m = new Date(d); m.setHours(12, 0, 0, 0); m.setDate(m.getDate() - ((m.getDay() + 6) % 7)); return m; };
 const minutes = (s) => Number(s.slice(11, 13)) * 60 + Number(s.slice(14, 16));
-const STUDY_TAIL = 'Use the school tools to find the matching Moodle course and files, and teach from the actual course material.';
+const readLang = () => { try { return localStorage.getItem(LANG_KEY) === 'fr' ? 'fr' : 'en'; } catch { return 'en'; } };
 
 export function activate(ctx) {
-  let lang = 'en';
+  let lang = readLang();
+  // Whole-app French: the host's own UI strings, translated in place.
+  if (lang === 'fr') ctx.cleanup(startTranslator(FR_APP));
   const t = (key, ...args) => { const v = STRINGS[lang][key] ?? STRINGS.en[key]; return typeof v === 'function' ? v(...args) : v; };
   const locale = () => (lang === 'fr' ? 'fr-FR' : 'en-GB');
   const fmtDay = (s) => new Date(`${s.slice(0, 10)}T12:00:00`).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' });
-  const loadLang = async () => { try { lang = (await ctx.call('status')).language || 'en'; } catch { /* keep */ } };
+  const button = (props, signal) => { const slot = el('span'); ctx.ui.mountButton(slot, { size: 'sm', ...props }, { signal }); return slot; };
 
-  /** visible=false: the request is a hidden brief (button-started sessions). */
+  async function setLanguage(next) {
+    await ctx.call('set-profile', { language: next });
+    try { localStorage.setItem(LANG_KEY, next); } catch { /* per-window convenience only */ }
+    location.reload(); // the translator applies to the whole window
+  }
+
+  // ── sessions ──
   async function startStudy({ title, request, context = '', visible = false, kind }) {
     request = request.trim();
     if (!request) return;
     const res = await fetch('/api/chats', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ title: (title || request).slice(0, 80), ...(kind ? { kind } : {}) }) });
     if (!res.ok) throw new Error(`Could not create a session (HTTP ${res.status})`);
     const { id } = await res.json();
-    const text = `${visible ? '' : HIDDEN}${request}\n\n(${context}${STUDY_TAIL})`;
     // Same handover the native "new session" flow uses: the chat sends it on open.
-    sessionStorage.setItem(`lh.openingPrompt.${id}`, JSON.stringify({ text, attempted: false }));
+    sessionStorage.setItem(`lh.openingPrompt.${id}`, JSON.stringify({ text: `${visible ? '' : HIDDEN}${request}\n\n(${context}${STUDY_TAIL})`, attempted: false }));
     ctx.app.openSession(id);
   }
   const reviseExam = (e) => startStudy({ title: `${e.title} · ${t('tRevision')}`, request: `Help me revise for my ${e.title} exam.`, context: `The exam is on ${e.start.slice(0, 10)} at ${e.start.slice(11)}; check the course announcements for what it covers. ` });
 
-  function button(slot, props, signal) { ctx.ui.mountButton(slot, { size: 'sm', ...props }, { signal }); return slot; }
+  // ── shared form pieces (settings page and setup) ──
+  const select = (value, options, onChange) => {
+    const node = el('select', { class: 'dv-input' }, options.map(([v, label]) => el('option', { value: v }, label)));
+    node.value = String(value);
+    node.addEventListener('change', () => onChange(node.value));
+    return node;
+  };
+  const field = (label, control, help) => el('div', { class: 'dv-field' }, el('label', { class: 'dv-label' }, label), el('div', { class: 'dv-control' }, control, help && el('p', { class: 'dv-help' }, help)));
+  const saved = (note) => { note.textContent = t('saved'); setTimeout(() => { note.textContent = ''; }, 1500); };
 
-  function profileRows(s, signal, rerender) {
-    const group = el('input', { class: 'dv-input dv-short', maxlength: '1', placeholder: 'D', value: s.group });
-    const select = (value, options) => { const node = el('select', { class: 'dv-input dv-short' }, options.map(([v, label]) => el('option', { value: v }, label))); node.value = value; return node; };
-    const campus = select(s.campus, [['Paris', 'Paris'], ['Nantes', 'Nantes']]);
-    const year = select(String(s.year || 2), [1, 2, 3, 4, 5].map((n) => [String(n), String(n)]));
-    const ui = select(s.language, [['en', 'English'], ['fr', 'Français']]);
-    const ai = select(s.aiLanguage, [['auto', t('sameAsApp')], ['en', 'English'], ['fr', 'Français']]);
-    const note = el('span', { class: 'dv-muted' });
-    const save = button(el('span'), {
-      label: t('save'), onClick: async () => {
-        try { await ctx.call('set-profile', { group: group.value, campus: campus.value, year: Number(year.value), language: ui.value, aiLanguage: ai.value }); lang = ui.value; rerender(); }
-        catch (e) { note.textContent = /one letter/.test(e.message) ? t('groupErr') : e.message; }
-      },
-    }, signal);
-    return el('div', { class: 'dv-row' }, el('span', {}, t('group')), group, el('span', {}, t('campus')), campus, el('span', {}, t('year')), year, el('span', {}, t('uiLang')), ui, el('span', {}, t('aiLang')), ai, save, note);
+  function profileFields(s, note) {
+    const save = async (patch) => { try { await ctx.call('set-profile', patch); saved(note); } catch (e) { note.textContent = /one letter/.test(e.message) ? t('groupErr') : e.message; } };
+    const group = el('input', { class: 'dv-input dv-letter', maxlength: '1', placeholder: 'D', value: s.group });
+    group.addEventListener('change', () => save({ group: group.value }));
+    return [
+      field(t('group'), group, t('groupHelp')),
+      field(t('campus'), select(s.campus, [['Paris', 'Paris'], ['Nantes', 'Nantes']], (v) => save({ campus: v }))),
+      field(t('year'), select(s.year || 2, [1, 2, 3, 4, 5].map((n) => [String(n), t('yearN', n)]), (v) => save({ year: Number(v) })), t('yearHelp')),
+    ];
   }
-
-  function connectionSection(s, signal, rerender) {
-    const box = el('section', { class: 'dv-card' }, el('h2', {}, t('settings')));
-    const moodle = el('div', { class: 'dv-row' }, el('span', {}, s.connected ? t('moodleOn') : t('moodleOff')));
-    moodle.append(button(el('span'), { label: s.connected ? t('disconnect') : t('connect'), variant: s.connected ? 'secondary' : 'default', onClick: async () => { await ctx.call(s.connected ? 'logout' : 'login'); rerender(); } }, signal));
-    const leo = el('div', { class: 'dv-row' }, el('span', {}, s.leo ? t('leoOn') : t('leoOff')));
-    if (!s.leo) leo.append(button(el('span'), { label: t('connect'), onClick: async () => { await ctx.call('leo-login'); rerender(); } }, signal));
-
-    const link = el('input', { type: 'password', placeholder: s.icsUrl ? t('icsSaved') : t('icsPh'), class: 'dv-input', autocomplete: 'off' });
-    const file = el('input', { type: 'file', accept: '.ics,text/calendar', class: 'dv-file' });
+  function languageFields(s, note) {
+    return [
+      field(t('uiLang'), select(s.language, [['en', 'English'], ['fr', 'Français']], (v) => setLanguage(v)), t('uiLangHelp')),
+      field(t('aiLang'), select(s.aiLanguage, [['auto', t('sameAsApp')], ['en', 'English'], ['fr', 'Français']], async (v) => { await ctx.call('set-profile', { aiLanguage: v }); saved(note); })),
+    ];
+  }
+  function moodleField(s, signal, refresh) {
+    return field('Moodle', el('div', { class: 'dv-inline' },
+      el('span', { class: s.connected ? 'dv-ok' : 'dv-muted' }, s.connected ? t('connected') : t('notConnected')),
+      button({ label: s.connected ? t('disconnect') : t('connect'), variant: s.connected ? 'outline' : 'default', onClick: async () => { await ctx.call(s.connected ? 'logout' : 'login'); refresh(); } }, signal)), t('moodleHelp'));
+  }
+  function leoField(s, signal, refresh) {
+    return field('LeoData', el('div', { class: 'dv-inline' },
+      el('span', { class: s.leo ? 'dv-ok' : 'dv-muted' }, s.leo ? t('connected') : t('notConnected')),
+      !s.leo && button({ label: t('connect'), onClick: async () => { await ctx.call('leo-login'); refresh(); } }, signal)), t('leoHelp'));
+  }
+  function scheduleField(s, signal, refresh) {
     const note = el('span', { class: 'dv-muted' });
-    const save = button(el('span'), { label: t('saveLink'), onClick: async () => { try { const r = await ctx.call('set-ics-url', { url: link.value }); link.value = ''; note.textContent = t('loaded', r.count); rerender(); } catch (e) { note.textContent = e.message; } } }, signal);
+    const link = el('input', { type: 'password', class: 'dv-input dv-grow', autocomplete: 'off', placeholder: s.icsUrl ? t('icsSaved') : t('icsPh') });
+    const file = el('input', { type: 'file', accept: '.ics,text/calendar', hidden: true });
+    const done = (r) => { note.textContent = t('loaded', r.count); refresh(); };
     file.addEventListener('change', async () => {
       const f = file.files?.[0]; if (!f) return;
-      try { const r = await ctx.call('set-ics-text', { text: await f.text() }); note.textContent = t('loaded', r.count); rerender(); }
-      catch (e) { note.textContent = e.message; }
+      try { done(await ctx.call('set-ics-text', { text: await f.text() })); } catch (e) { note.textContent = e.message; }
     });
-    const auto = el('input', { type: 'checkbox' });
+    return field(t('schedule'), el('div', { class: 'dv-stack' },
+      el('span', { class: s.hasSchedule ? 'dv-ok' : 'dv-muted' }, s.hasSchedule ? t('imported') : t('notImported')),
+      el('div', { class: 'dv-inline' }, link, button({ label: t('saveLink'), onClick: async () => { try { done(await ctx.call('set-ics-url', { url: link.value })); link.value = ''; } catch (e) { note.textContent = e.message; } } }, signal)),
+      el('div', { class: 'dv-inline' }, el('span', { class: 'dv-muted' }, t('orFile')), button({ label: t('chooseFile'), variant: 'outline', onClick: () => file.click() }, signal), file, note),
+    ), t('icsHelp'));
+  }
+  function libraryField(s) {
+    const auto = el('input', { type: 'checkbox', id: 'dv-autolib' });
     auto.checked = s.autoLibrary;
     auto.addEventListener('change', () => ctx.call('set-auto-library', { enabled: auto.checked }));
-    box.append(
-      profileRows(s, signal, rerender),
-      moodle, leo,
-      el('div', { class: 'dv-row' }, el('span', {}, s.hasSchedule ? t('schedOn') : t('schedOff'))),
-      el('div', { class: 'dv-row' }, link, save),
-      el('div', { class: 'dv-row' }, el('span', { class: 'dv-muted' }, t('orFile')), file, note),
-      el('label', { class: 'dv-row dv-muted' }, auto, t('autoLib')),
-    );
-    return box;
+    return field(t('autoImport'), el('label', { class: 'dv-check', for: 'dv-autolib' }, auto, t('autoLib')), t('autoLibHelp'));
+  }
+  const section = (title, ...rows) => el('section', { class: 'dv-set' }, el('h3', {}, title), ...rows);
+
+  // ── settings page (Settings → De Vinci) ──
+  ctx.registerSettings((container, signal) => {
+      const root = el('div', { class: 'dv-settings' });
+      container.append(root);
+      const render = async () => {
+        const s = await ctx.call('status');
+        if (signal.aborted) return;
+        const note = el('span', { class: 'dv-saved' });
+        root.replaceChildren(
+          section(t('profile'), ...profileFields(s, note)),
+          section(t('languages'), ...languageFields(s, note)),
+          section(t('connections'), moodleField(s, signal, render), leoField(s, signal, render), scheduleField(s, signal, render)),
+          section(t('library'), libraryField(s)),
+          section(t('setup'), field(t('setupAgain'), button({ label: t('runSetup'), variant: 'outline', onClick: async () => { await ctx.call('set-setup', { step: 0, done: false }); ctx.app.openView('home'); } }, signal))),
+          note,
+        );
+      };
+      render().catch((e) => root.replaceChildren(el('p', { class: 'dv-muted' }, e.message)));
+      return () => root.remove();
+  });
+
+  // ── first-time setup ──
+  function setupWizard(root, s, signal, finish) {
+    const steps = [
+      { title: t('w1Title'), body: () => [el('p', {}, t('w1Text')), ...languageFields(s, el('span'))] },
+      { title: t('w2Title'), body: () => [el('p', {}, t('w2Text')), ...profileFields(s, el('span'))] },
+      { title: t('w3Title'), body: (refresh) => [el('p', {}, t('w3Text')), moodleField(s, signal, refresh)] },
+      { title: t('w4Title'), body: (refresh) => [el('p', {}, t('w4Text')), el('ol', { class: 'dv-steps' }, t('w4Steps').map((x) => el('li', {}, x))), scheduleField(s, signal, refresh)] },
+      { title: t('w5Title'), body: (refresh) => [el('p', {}, t('w5Text')), leoField(s, signal, refresh)] },
+      {
+        title: t('w6Title'), body: () => {
+          const box = el('div', { class: 'dv-stack' }, el('p', { class: 'dv-muted' }, t('loading')));
+          ctx.call('models').then((m) => box.replaceChildren(
+            el('p', {}, t('w6Text')),
+            field(t('mainModel'), el('span', { class: m.strong ? 'dv-ok' : 'dv-warn' }, m.strong || t('notSet'))),
+            field(t('cheapModel'), el('span', { class: m.cheap ? 'dv-ok' : 'dv-warn' }, m.cheap || t('notSetCheap'))),
+            (!m.strong || !m.cheap) && el('ol', { class: 'dv-steps' }, t('w6Steps').map((x) => el('li', {}, x))),
+            (!m.strong || !m.cheap) && button({ label: t('openAppSettings'), variant: 'outline', onClick: () => { location.href = '/settings'; } }, signal),
+          )).catch((e) => box.replaceChildren(el('p', { class: 'dv-muted' }, e.message)));
+          return [box];
+        },
+      },
+      { title: t('w7Title'), body: () => [el('p', {}, t('w7Text')), el('ul', { class: 'dv-guide' }, t('guide').map(([h, d]) => el('li', {}, el('strong', {}, h), ` ${d}`)))] },
+    ];
+    let step = Math.min(s.setupStep || 0, steps.length - 1);
+    const go = async (next) => { step = next; await ctx.call('set-setup', { step }); s = await ctx.call('status'); draw(); };
+    const draw = () => {
+      const last = step === steps.length - 1;
+      const nav = el('div', { class: 'dv-inline dv-wizard-nav' },
+        step > 0 && button({ label: t('back'), variant: 'outline', onClick: () => go(step - 1) }, signal),
+        el('span', { class: 'dv-muted dv-push' }, t('stepOf', step + 1, steps.length)),
+        button({ label: last ? t('finish') : t('next2'), onClick: async () => { if (last) { await ctx.call('set-setup', { done: true, step: 0 }); finish(); } else go(step + 1); } }, signal));
+      root.replaceChildren(el('div', { class: 'dv-wizard' },
+        el('div', { class: 'dv-progress' }, steps.map((_, i) => el('span', { class: i <= step ? 'on' : '' }))),
+        el('h1', {}, steps[step].title),
+        ...steps[step].body(async () => { s = await ctx.call('status'); draw(); }),
+        nav));
+    };
+    draw();
   }
 
-  function listCard(title, items, empty, ...extra) {
-    return el('section', { class: 'dv-card' }, el('h2', {}, title), items.length ? el('ul', { class: 'dv-list' }, items) : el('p', { class: 'dv-muted' }, empty), ...extra);
-  }
+  // ── home ──
+  const listCard = (title, items, empty, ...extra) => el('section', { class: 'dv-card' }, el('h2', {}, title), items.length ? el('ul', { class: 'dv-list' }, items) : el('p', { class: 'dv-muted' }, empty), ...extra);
   const deadlineItem = (d) => el('li', {}, el('strong', {}, new Date(d.due).toLocaleString(locale(), { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })), ` ${d.name}`, el('span', { class: 'dv-muted' }, ` · ${d.course}`));
   const when = (s) => { const d = daysUntil(s); return d === 0 ? t('today') : d === 1 ? t('tomorrow') : t('inDays', d); };
 
@@ -149,53 +189,48 @@ export function activate(ctx) {
       container.append(root);
       const render = async () => {
         if (signal.aborted) return;
-        root.replaceChildren(el('h1', {}, 'De Vinci'), el('p', { class: 'dv-muted' }, t('loading')));
-        let overview, status;
-        try { [overview, status] = await Promise.all([ctx.call('overview'), ctx.call('status')]); }
-        catch (e) { root.replaceChildren(el('h1', {}, 'De Vinci'), el('p', { class: 'dv-muted' }, e.message)); return; }
+        root.replaceChildren(el('p', { class: 'dv-muted' }, t('loading')));
+        const status = await ctx.call('status');
         if (signal.aborted) return;
-        lang = status.language || 'en';
+        if (status.language !== lang) { try { localStorage.setItem(LANG_KEY, status.language); } catch { /* ignore */ } }
+        if (!status.setupDone) return setupWizard(root, status, signal, render);
+        const overview = await ctx.call('overview');
+        if (signal.aborted) return;
 
-        const study = el('div', { class: 'dv-study' });
+        const study = el('div');
         let draft = '';
         const composer = ctx.ui.mountComposer(study, {
           value: '', placeholder: t('studyPh'),
           onChange: (v) => { draft = v; composer.update({ value: v }); },
           onSend: () => startStudy({ request: draft, visible: true }),
         }, { signal });
-
-        const exams = overview.exams.map((e) => el('li', {}, el('strong', {}, `${fmtDay(e.start)} ${e.start.slice(11)}`), ` ${e.title}`, el('span', { class: 'dv-muted' }, ` · ${when(e.start)}`),
-          button(el('span'), { label: t('revise'), onClick: () => reviseExam(e) }, signal)));
-
+        const exams = overview.exams.map((e) => el('li', {}, el('strong', {}, `${fmtDay(e.start)} ${e.start.slice(11)}`), ` ${e.title}`, el('span', { class: 'dv-muted' }, ` · ${when(e.start)}`), button({ label: t('revise'), onClick: () => reviseExam(e) }, signal)));
         const hidden = overview.hiddenDeadlines || [];
-        const hiddenList = el('ul', { class: 'dv-list dv-hidden-list', hidden: '' }, hidden.map(deadlineItem));
-        const hiddenToggle = hidden.length ? el('button', { class: 'dv-link', onclick: () => { hiddenList.hidden = !hiddenList.hidden; } }, t('hiddenFor', hidden.length)) : null;
-
+        const hiddenList = el('ul', { class: 'dv-list dv-hidden-list', hidden: true }, hidden.map(deadlineItem));
+        const hiddenToggle = hidden.length && el('button', { class: 'dv-link', onclick: () => { hiddenList.hidden = !hiddenList.hidden; } }, t('hiddenFor', hidden.length));
         const classes = overview.classes.map((c) => el('li', {}, el('strong', {}, `${fmtDay(c.start)} ${c.start.slice(11)}–${(c.end || '').slice(11)}`), ` ${c.title}`, el('span', { class: 'dv-muted' }, ` ${c.type ? `[${c.type}] ` : ''}${c.place}`)));
-        const openTimetable = button(el('span'), { label: t('openTimetable'), variant: 'outline', onClick: () => ctx.app.openView('timetable') }, signal);
+        const missing = [!status.connected && 'Moodle', !status.hasSchedule && t('schedule')].filter(Boolean);
 
-        const ask = status.group ? null : el('section', { class: 'dv-card dv-ask' }, el('h2', {}, t('askGroup')), el('p', { class: 'dv-muted' }, t('askGroupWhy')), profileRows(status, signal, render));
-
-        root.replaceChildren(...[
+        root.replaceChildren(
           el('h1', {}, 'De Vinci'),
-          ask,
+          missing.length && el('section', { class: 'dv-card dv-ask' }, el('p', {}, t('missing', missing.join(', '))), button({ label: t('openSettings'), variant: 'outline', onClick: () => ctx.app.openSettings() }, signal)),
           el('section', { class: 'dv-card' }, el('h2', {}, t('study')), study),
           listCard(t('exams'), exams, t('noExams')),
           listCard(t('deadlines', overview.group), overview.deadlines.map(deadlineItem), overview.deadlineError || t('noDeadlines'), hiddenToggle, hiddenList),
-          listCard(t('soon'), classes, t('noClasses'), el('div', { class: 'dv-row' }, openTimetable)),
-          connectionSection(status, signal, render),
-        ].filter(Boolean));
+          listCard(t('soon'), classes, t('noClasses'), el('div', { class: 'dv-inline' }, button({ label: t('openTimetable'), variant: 'outline', onClick: () => ctx.app.openView('timetable') }, signal))),
+        );
       };
-      render();
+      render().catch((e) => root.replaceChildren(el('p', { class: 'dv-muted' }, e.message)));
       return () => root.remove();
     },
   });
 
+  // ── timetable ──
   function eventMenu(anchor, e) {
     const c = e.title;
     const items = e.exam ? [
       { key: 'revise', label: t('mReviseExam'), onSelect: () => reviseExam(e) },
-      { key: 'past', label: t('mPastExams'), onSelect: () => startStudy({ title: `${c} · ${t('tPast')}`, kind: 'practice', request: `Give me practice problems from previous years' ${c} exams.`, context: 'Find them in LeoData (school_past_exams_browse / school_past_exams_read) and say which year each problem comes from. ' }) },
+      { key: 'past', label: t('mPastExams'), onSelect: () => startStudy({ title: `${c} · ${t('tPast')}`, kind: 'practice', request: `Give me practice problems from previous years' ${c} exams.`, context: 'Find them in LeoData and say which year each problem comes from. ' }) },
       { key: 'scope', label: t('mScope'), onSelect: () => startStudy({ title: `${c} · ${t('tScope')}`, request: `What does my ${c} exam on ${e.start.slice(0, 10)} cover?`, context: 'Read the course announcements and quote the ones you rely on. ' }) },
     ] : [
       { key: 'revise', label: t('mRevise', c), onSelect: () => startStudy({ title: `${c} · ${t('tRevision')}`, request: `Help me revise ${c}.` }) },
@@ -207,21 +242,18 @@ export function activate(ctx) {
   }
 
   ctx.registerView({
-    id: 'timetable', name: 'Timetable',
+    id: 'timetable', name: lang === 'fr' ? 'Emploi du temps' : 'Timetable',
     mount(container, signal) {
       const root = el('div', { class: 'dv-tt' });
       container.append(root);
       let start = monday(new Date());
       const render = async () => {
-        await loadLang();
         const events = await ctx.call('week', { start: isoDay(start) });
         if (signal.aborted) return;
         const days = [...Array(7)].map((_, i) => { const d = new Date(start); d.setDate(d.getDate() + i); return isoDay(d); })
           .filter((d, i) => i < 5 || events.some((e) => e.start.startsWith(d)));
-        const nav = el('div', { class: 'dv-row' });
-        for (const [label, delta] of [[t('prev'), -7], [t('thisWeek'), 0], [t('next'), 7]]) {
-          button(nav.appendChild(el('span')), { label, variant: 'outline', onClick: () => { if (delta) start.setDate(start.getDate() + delta); else start = monday(new Date()); render(); } }, signal);
-        }
+        const nav = el('div', { class: 'dv-inline' }, [[t('prev'), -7], [t('thisWeek'), 0], [t('next'), 7]].map(([label, delta]) =>
+          button({ label, variant: 'outline', onClick: () => { if (delta) start.setDate(start.getDate() + delta); else start = monday(new Date()); render(); } }, signal)));
         const today = isoDay(new Date());
         const hours = el('div', { class: 'dv-tt-hours' }, [...Array(DAY_END - DAY_START)].map((_, i) => el('div', { style: `height:${HOUR_PX}px` }, `${DAY_START + i}:00`)));
         const columns = days.map((day) => el('div', { class: `dv-tt-day${day === today ? ' dv-tt-today' : ''}` },
@@ -246,9 +278,16 @@ export function activate(ctx) {
   });
 
   ctx.registerAction({ id: 'open-home', name: 'De Vinci', icon: ICON, run: () => ctx.app.openView('home') });
-  ctx.registerAction({ id: 'open-timetable', name: 'Timetable', icon: CAL_ICON, run: () => ctx.app.openView('timetable') });
+  ctx.registerAction({ id: 'open-timetable', name: lang === 'fr' ? 'Emploi du temps' : 'Timetable', icon: CAL_ICON, run: () => ctx.app.openView('timetable') });
   ctx.placeAction({ id: 'home-sidebar', actionId: 'open-home', location: 'sidebar' });
   ctx.placeAction({ id: 'timetable-sidebar', actionId: 'open-timetable', location: 'sidebar' });
+
+  // First launch: land on the setup instead of an empty app.
+  ctx.call('status').then((s) => {
+    // Reload only once the new language is stored, so this can never loop.
+    if (s.language !== lang) { try { localStorage.setItem(LANG_KEY, s.language); location.reload(); } catch { /* storage blocked: stay as is */ } }
+    if (!s.setupDone && ctx.app.pathname() === '/') ctx.app.openView('home');
+  }).catch(() => {});
 
   // Files the AI actually read go into the library through the native import.
   ctx.onNotification(async (event) => {

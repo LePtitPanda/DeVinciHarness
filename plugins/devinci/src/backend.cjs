@@ -254,16 +254,25 @@ function activate(ctx) {
     const st = readState();
     let leo = false;
     try { leo = (await desktop('leo-status')).connected; } catch { /* offline or not desktop */ }
-    return { connected: !!(await getToken()), leo, icsUrl: !!st.icsUrl, hasSchedule: fs.existsSync(icsFile), autoLibrary: st.autoLibrary !== false, group: st.group || '', campus: st.campus || 'Paris', year: st.year || 2, language: st.language || 'en', aiLanguage: st.aiLanguage || 'auto' };
+    return { connected: !!(await getToken()), leo, icsUrl: !!st.icsUrl, hasSchedule: fs.existsSync(icsFile), autoLibrary: st.autoLibrary !== false, group: st.group || '', campus: st.campus || 'Paris', year: st.year || 2, language: st.language || 'en', aiLanguage: st.aiLanguage || 'auto', setupDone: !!st.setupDone, setupStep: st.setupStep || 0 };
   });
   ctx.handle('leo-login', async () => desktop('leo-login'));
-  ctx.handle('set-profile', async (input) => {
-    const group = String(input?.group ?? '').trim().toUpperCase();
+  ctx.handle('set-setup', async (input) => writeState({ setupStep: Number.isInteger(input?.step) ? input.step : readState().setupStep, setupDone: input?.done === undefined ? readState().setupDone : !!input.done }));
+  ctx.handle('models', async () => {
+    const slots = (await ctx.inference.catalog()).slots || {};
+    const name = (pin) => (pin?.model ? `${pin.model.provider} · ${pin.model.id}` : null);
+    return { strong: name(slots.strong), cheap: name(slots.cheap) };
+  });
+  // Partial update: fields left out keep their saved value.
+  ctx.handle('set-profile', async (input = {}) => {
+    const st = readState();
+    const group = input.group === undefined ? st.group || '' : String(input.group).trim().toUpperCase();
     if (group && !/^[A-Z]$/.test(group)) throw new Error('Enter your TD group as one letter, e.g. D.');
-    const campus = ['Paris', 'Nantes'].includes(input?.campus) ? input.campus : 'Paris';
-    const year = [1, 2, 3, 4, 5].includes(Number(input?.year)) ? Number(input.year) : 2;
-    const language = ['en', 'fr'].includes(input?.language) ? input.language : 'en';
-    const aiLang = ['auto', 'en', 'fr'].includes(input?.aiLanguage) ? input.aiLanguage : 'auto';
+    const pick = (value, allowed, current, fallback) => (allowed.includes(value) ? value : current ?? fallback);
+    const campus = pick(input.campus, ['Paris', 'Nantes'], st.campus, 'Paris');
+    const year = pick(Number(input.year), [1, 2, 3, 4, 5], st.year, 2);
+    const language = pick(input.language, ['en', 'fr'], st.language, 'en');
+    const aiLang = pick(input.aiLanguage, ['auto', 'en', 'fr'], st.aiLanguage, 'auto');
     writeState({ group: group || undefined, campus, year, language, aiLanguage: aiLang });
     applyInstructions();
     return readState();
