@@ -207,13 +207,13 @@ export function activate(ctx) {
         const exams = overview.exams.map((e) => el('li', {}, el('strong', {}, `${fmtDay(e.start)} ${e.start.slice(11)}`), ` ${e.title}`, el('span', { class: 'dv-muted' }, ` · ${when(e.start)}`), button({ label: t('revise'), onClick: () => reviseExam(e) }, signal)));
         const hidden = overview.hiddenDeadlines || [];
         const hiddenList = el('ul', { class: 'dv-list dv-hidden-list', hidden: true }, hidden.map(deadlineItem));
-        const hiddenToggle = hidden.length && el('button', { class: 'dv-link', onclick: () => { hiddenList.hidden = !hiddenList.hidden; } }, t('hiddenFor', hidden.length));
+        const hiddenToggle = hidden.length > 0 && el('button', { class: 'dv-link', onclick: () => { hiddenList.hidden = !hiddenList.hidden; } }, t('hiddenFor', hidden.length));
         const classes = overview.classes.map((c) => el('li', {}, el('strong', {}, `${fmtDay(c.start)} ${c.start.slice(11)}–${(c.end || '').slice(11)}`), ` ${c.title}`, el('span', { class: 'dv-muted' }, ` ${c.type ? `[${c.type}] ` : ''}${c.place}`)));
         const missing = [!status.connected && 'Moodle', !status.hasSchedule && t('schedule')].filter(Boolean);
 
         root.replaceChildren(
           el('h1', {}, 'De Vinci'),
-          missing.length && el('section', { class: 'dv-card dv-ask' }, el('p', {}, t('missing', missing.join(', '))), button({ label: t('openSettings'), variant: 'outline', onClick: () => ctx.app.openSettings() }, signal)),
+          missing.length > 0 && el('section', { class: 'dv-card dv-ask' }, el('p', {}, t('missing', missing.join(', '))), button({ label: t('openSettings'), variant: 'outline', onClick: () => ctx.app.openSettings() }, signal)),
           el('section', { class: 'dv-card' }, el('h2', {}, t('study')), study),
           listCard(t('exams'), exams, t('noExams')),
           listCard(t('deadlines', overview.group), overview.deadlines.map(deadlineItem), overview.deadlineError || t('noDeadlines'), hiddenToggle, hiddenList),
