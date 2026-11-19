@@ -28,7 +28,9 @@ export async function verifyCorePlugins({ root, standalone, dataDirectory, url }
 	assert.deepEqual(initial.plugins.filter(p => p.origin === "core").map(p => p.id).sort(), [...ids].sort());
 	for (const id of ids) {
 		const info = initial.plugins.find(p => p.id === id);
-		assert.equal(info.enabled, false, id); assert.equal(info.status, "disabled", JSON.stringify(info));
+		// fork: devinci is the app's reason to exist, so it starts enabled (plugin-host.ts).
+		const on = id === "devinci";
+		assert.equal(info.enabled, on, id); if (!on) assert.equal(info.status, "disabled", JSON.stringify(info));
 		assert.equal(fs.existsSync(path.join(dataDirectory, "plugins", id)), false, "core code must not be installed into user data");
 	}
 	assert.equal(fs.existsSync(path.join(dataDirectory, "core-plugin-data")), false, "disabled fresh discovery creates no core records");
