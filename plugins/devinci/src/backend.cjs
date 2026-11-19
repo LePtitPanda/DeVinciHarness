@@ -262,7 +262,7 @@ function activate(ctx) {
     const st = readState();
     let leo = false;
     try { leo = (await desktop('leo-status')).connected; } catch { /* offline or not desktop */ }
-    return { connected: !!(await getToken()), leo, icsUrl: !!st.icsUrl, hasSchedule: fs.existsSync(icsFile), autoLibrary: st.autoLibrary === true, group: st.group || '', campus: st.campus || 'Paris', year: st.year || 2, language: st.language || 'en', aiLanguage: st.aiLanguage || 'auto', setupDone: !!st.setupDone, setupStep: st.setupStep || 0 };
+    return { connected: !!(await getToken()), leo, icsUrl: !!st.icsUrl, hasSchedule: fs.existsSync(icsFile), autoLibrary: st.autoLibrary !== false, group: st.group || '', campus: st.campus || 'Paris', year: st.year || 2, language: st.language || 'en', aiLanguage: st.aiLanguage || 'auto', setupDone: !!st.setupDone, setupStep: st.setupStep || 0 };
   });
   ctx.handle('leo-login', async () => desktop('leo-login'));
   ctx.handle('set-setup', async (input) => writeState({ setupStep: Number.isInteger(input?.step) ? input.step : readState().setupStep, setupDone: input?.done === undefined ? readState().setupDone : !!input.done }));
@@ -332,7 +332,7 @@ function activate(ctx) {
   });
   ctx.handle('claim-import', async (input) => {
     const url = canonical(String(input?.url ?? '')), state = readState(), imported = (state.imported || []).map(canonical);
-    if (state.autoLibrary !== true || imported.includes(url)) return { import: false };
+    if (state.autoLibrary === false || imported.includes(url)) return { import: false };
     writeState({ imported: [...imported, url] });
     return { import: true };
   });

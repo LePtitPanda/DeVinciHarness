@@ -295,9 +295,12 @@ export function activate(ctx) {
     const { url, name, course } = event.data || {};
     try {
       if (!(await ctx.call('claim-import', { url })).import) return;
+      const safe = (s) => String(s).replace(/[\\/:\x00-\x1f\x7f]/g, '_').trim() || 'Course';
+      // Already in the library (manual import, older install): don't pay for extraction twice.
+      const { sources = [] } = await fetch('/api/graph/sources').then((r) => r.json());
+      if (sources.some((x) => x.kind === 'notes' && String(x.filePath || '').split(/[\\/]/).pop() === safe(name))) return;
       const { base64 } = await ctx.call('file-bytes', { url });
       const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-      const safe = (s) => String(s).replace(/[\\/:\x00-\x1f\x7f]/g, '_').trim() || 'Course';
       const form = new FormData();
       form.append('files', new File([bytes], safe(name)));
       form.append('paths', `De Vinci/${safe(course || 'Course')}/${safe(name)}`);
