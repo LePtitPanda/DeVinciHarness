@@ -70,3 +70,38 @@ test('moodle: entity-encoded names are decoded', () => {
   const { decodeEntities } = require('../src/moodle.cjs');
   assert.equal(decodeEntities('Algorithmique &amp; POO'), 'Algorithmique & POO');
 });
+
+test('finder: cheap model picks courses then files; invented picks are dropped', async () => {
+  const { findMaterial, formatPicks } = require('../src/finder.cjs');
+  const leoTree = {
+    root: { children: { directories: [{ _id: 'e1', name: 'ESILV' }], files: [] } },
+    e1: { children: { directories: [{ _id: 'y2', name: 'Année 2' }], files: [] } },
+    y2: { children: { directories: [{ _id: 'alg', name: 'Algèbre linéaire' }, { _id: 'meca', name: 'Mécanique' }], files: [] } },
+    alg: { children: { directories: [], files: [{ _id: 'x1', name: 'DE 2025.pdf' }] } },
+  };
+  const prompts = [];
+  const answers = ['{"courseIds":[7, 999],"leoFolderIds":["alg","nope"]}', 'Sure: {"picks":[{"key":"m0","why":"chapter on diagonalisation"},{"key":"l1","why":"past exam"},{"key":"zz","why":"made up"}]}'];
+  const result = await findMaterial({ topic: 'diagonalisation' }, {
+    courses: async () => [{ id: 7, name: 'Algèbre linéaire', short: 'ALG' }, { id: 8, name: 'Mécanique', short: 'MECA' }],
+    contents: async (id) => { assert.equal(id, 7); return [{ name: 'Ch. 3', modules: [{ name: 'Cours', contents: [{ type: 'file', filename: 'diag.pdf', fileurl: 'https://learning.devinci.fr/webservice/pluginfile.php/1/diag.pdf' }] }] }]; },
+    leo: async (id) => leoTree[id],
+    ask: async (p) => { prompts.push(p); return answers.shift(); },
+    year: 2,
+  });
+  assert.equal(prompts.length, 2, 'exactly two cheap calls');
+  assert.match(prompts[0], /7: Algèbre linéaire/);
+  assert.match(prompts[1], /m0: Algèbre linéaire › Ch\. 3 › Cours › diag\.pdf/);
+  assert.deepEqual(result.picks.map((p) => p.key), ['m0', 'l1']);
+  const out = formatPicks(result);
+  assert.match(out, /school_read_file url=https:\/\/learning\.devinci\.fr\/webservice\/pluginfile\.php\/1\/diag\.pdf course=ALG/);
+  assert.match(out, /school_past_exams_read fileId=x1/);
+});
+
+test('finder: works without LeoData', async () => {
+  const { findMaterial } = require('../src/finder.cjs');
+  const r = await findMaterial({ topic: 't' }, {
+    courses: async () => [{ id: 1, name: 'C' }], contents: async () => [],
+    leo: async () => { throw new Error('Not signed in'); }, ask: async () => '{"courseIds":[1],"leoFolderIds":[]}', year: 2,
+  });
+  assert.deepEqual(r.picks, []);
+});

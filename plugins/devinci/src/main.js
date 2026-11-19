@@ -15,7 +15,7 @@ const STRINGS = {
     hiddenFor: (n) => `${n} hidden for other groups/campuses (show)`,
     soon: 'Today & tomorrow', noClasses: 'No classes.', openTimetable: 'Open timetable',
     askGroup: 'Which TD group are you in?', askGroupWhy: 'Used to hide Moodle deadlines meant for other groups.',
-    settings: 'Settings & connections', group: 'TD group', campus: 'Campus', uiLang: 'Language', aiLang: 'AI language', sameAsApp: 'Same as language', save: 'Save',
+    settings: 'Settings & connections', group: 'TD group', campus: 'Campus', year: 'Year', uiLang: 'Language', aiLang: 'AI language', sameAsApp: 'Same as language', save: 'Save',
     groupErr: 'Enter your TD group as one letter, e.g. D.',
     moodleOn: 'Moodle: connected', moodleOff: 'Moodle: not connected', connect: 'Connect', disconnect: 'Disconnect',
     leoOn: 'LeoData (past exams): connected', leoOff: 'LeoData (past exams): not connected',
@@ -35,7 +35,7 @@ const STRINGS = {
     hiddenFor: (n) => `${n} masqués (autres groupes/campus) — afficher`,
     soon: 'Aujourd’hui et demain', noClasses: 'Pas de cours.', openTimetable: 'Ouvrir l’emploi du temps',
     askGroup: 'Dans quel groupe de TD es-tu ?', askGroupWhy: 'Sert à masquer les rendus Moodle des autres groupes.',
-    settings: 'Réglages et connexions', group: 'Groupe TD', campus: 'Campus', uiLang: 'Langue', aiLang: 'Langue de l’IA', sameAsApp: 'Comme la langue', save: 'Enregistrer',
+    settings: 'Réglages et connexions', group: 'Groupe TD', campus: 'Campus', year: 'Année', uiLang: 'Langue', aiLang: 'Langue de l’IA', sameAsApp: 'Comme la langue', save: 'Enregistrer',
     groupErr: 'Indique ton groupe de TD en une lettre, ex. D.',
     moodleOn: 'Moodle : connecté', moodleOff: 'Moodle : non connecté', connect: 'Connecter', disconnect: 'Déconnecter',
     leoOn: 'LeoData (annales) : connecté', leoOff: 'LeoData (annales) : non connecté',
@@ -93,16 +93,17 @@ export function activate(ctx) {
     const group = el('input', { class: 'dv-input dv-short', maxlength: '1', placeholder: 'D', value: s.group });
     const select = (value, options) => { const node = el('select', { class: 'dv-input dv-short' }, options.map(([v, label]) => el('option', { value: v }, label))); node.value = value; return node; };
     const campus = select(s.campus, [['Paris', 'Paris'], ['Nantes', 'Nantes']]);
+    const year = select(String(s.year || 2), [1, 2, 3, 4, 5].map((n) => [String(n), String(n)]));
     const ui = select(s.language, [['en', 'English'], ['fr', 'Français']]);
     const ai = select(s.aiLanguage, [['auto', t('sameAsApp')], ['en', 'English'], ['fr', 'Français']]);
     const note = el('span', { class: 'dv-muted' });
     const save = button(el('span'), {
       label: t('save'), onClick: async () => {
-        try { await ctx.call('set-profile', { group: group.value, campus: campus.value, language: ui.value, aiLanguage: ai.value }); lang = ui.value; rerender(); }
+        try { await ctx.call('set-profile', { group: group.value, campus: campus.value, year: Number(year.value), language: ui.value, aiLanguage: ai.value }); lang = ui.value; rerender(); }
         catch (e) { note.textContent = /one letter/.test(e.message) ? t('groupErr') : e.message; }
       },
     }, signal);
-    return el('div', { class: 'dv-row' }, el('span', {}, t('group')), group, el('span', {}, t('campus')), campus, el('span', {}, t('uiLang')), ui, el('span', {}, t('aiLang')), ai, save, note);
+    return el('div', { class: 'dv-row' }, el('span', {}, t('group')), group, el('span', {}, t('campus')), campus, el('span', {}, t('year')), year, el('span', {}, t('uiLang')), ui, el('span', {}, t('aiLang')), ai, save, note);
   }
 
   function connectionSection(s, signal, rerender) {

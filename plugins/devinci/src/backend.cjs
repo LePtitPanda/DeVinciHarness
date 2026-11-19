@@ -5,6 +5,7 @@ const crypto = require('node:crypto');
 const { pathToFileURL } = require('node:url');
 const { createMoodle } = require('./moodle.cjs');
 const { otherGroup } = require('./groups.cjs');
+const { findMaterial, formatPicks } = require('./finder.cjs');
 const ics = require('./ics.cjs');
 
 const ICAL_PREFIX = 'https://ical.devinci.me/';
@@ -15,6 +16,7 @@ const AGENTS = ['prober', 'teacher', 'practice'];
 const LANGUAGE = { en: 'Teach and write in English.', fr: 'Enseigne et écris en français (the learner chose French), including questions, options and explanations.' };
 const INSTRUCTIONS = `The learner is an ESILV (De Vinci, Paris) engineering student. School tools are available:
 - school_schedule: their real timetable and exam dates (from the school calendar).
+- school_find_material: FIRST step when you need course material or past exams for a topic. A cheaper model searches Moodle and LeoData and returns the matching files; you then read those exact files. Prefer it over browsing yourself.
 - school_courses, school_course_contents, school_read_file: their Moodle (De Vinci Learning) courses and the actual course files. Teach from the real course material when it is relevant; say which file and page you used.
 - school_deadlines: upcoming Moodle assignments and quizzes.
 - school_past_exams_browse, school_past_exams_read: LeoData, the students' archive of previous years' exams and documents. Use past exams for realistic practice; say which year/file a question comes from.
@@ -75,6 +77,20 @@ function activate(ctx) {
   };
   const moodle = createMoodle({ getToken });
 
+  // The search step runs on the cheap model slot (falls back to the strong slot).
+  async function askCheap(prompt, signal) {
+    const catalog = await ctx.inference.catalog();
+    const pin = catalog.slots?.cheap ?? catalog.slots?.strong;
+    if (!pin) throw new Error('No model is configured for the search step.');
+    const message = await ctx.inference.complete({
+      model: { ...pin.model, ...(pin.thinkingLevel ? { thinkingLevel: pin.thinkingLevel } : {}) },
+      purpose: 'user', signal, options: { maxTokens: 1200 },
+      context: { systemPrompt: 'You select study files for a student. Reply with JSON only.', messages: [{ role: 'user', content: prompt, timestamp: Date.now() }] },
+    });
+    if (message.stopReason === 'error' || message.stopReason === 'aborted') throw new Error(message.errorMessage || 'The search model failed.');
+    return message.content.filter((b) => b.type === 'text').map((b) => b.text).join('');
+  }
+
   // ── schedule ──
   let events = null, icsFetchedAt = 0;
   async function schedule() {
@@ -124,6 +140,21 @@ function activate(ctx) {
         const to = p.to ? `${p.to}T00:00` : ics.localStamp(new Date(Date.parse(from.slice(0, 10)) + 14 * 86400e3));
         const list = ics.between(all, from, to).filter((e) => (p.examsOnly ? e.exam : e.type !== 'NR'));
         return text(list.length ? list.map(ics.formatEvent).join('\n') : 'Nothing scheduled in that range.');
+      },
+    },
+    {
+      name: 'school_find_material', label: 'Find course material',
+      description: 'Find the Moodle course files and LeoData past exams that match a topic. A cheaper model does the searching; it returns exact files (with how to read them), never summaries.',
+      parameters: schema({ topic: { type: 'string', description: 'What the learner wants to study, e.g. "diagonalisation for the Algèbre linéaire exam"' }, course: { type: 'string', description: 'Course name if known' } }, ['topic']),
+      async execute(_id, p, signal) {
+        const result = await findMaterial({ topic: p.topic, hint: p.course || '' }, {
+          courses: () => moodle.courses(signal),
+          contents: (id) => moodle.contents(id, signal),
+          leo: (id) => desktop('leo-get', { kind: 'dir', id }),
+          ask: (prompt) => askCheap(prompt, signal),
+          year: readState().year || 2,
+        });
+        return text(formatPicks(result));
       },
     },
     {
@@ -223,16 +254,17 @@ function activate(ctx) {
     const st = readState();
     let leo = false;
     try { leo = (await desktop('leo-status')).connected; } catch { /* offline or not desktop */ }
-    return { connected: !!(await getToken()), leo, icsUrl: !!st.icsUrl, hasSchedule: fs.existsSync(icsFile), autoLibrary: st.autoLibrary !== false, group: st.group || '', campus: st.campus || 'Paris', language: st.language || 'en', aiLanguage: st.aiLanguage || 'auto' };
+    return { connected: !!(await getToken()), leo, icsUrl: !!st.icsUrl, hasSchedule: fs.existsSync(icsFile), autoLibrary: st.autoLibrary !== false, group: st.group || '', campus: st.campus || 'Paris', year: st.year || 2, language: st.language || 'en', aiLanguage: st.aiLanguage || 'auto' };
   });
   ctx.handle('leo-login', async () => desktop('leo-login'));
   ctx.handle('set-profile', async (input) => {
     const group = String(input?.group ?? '').trim().toUpperCase();
     if (group && !/^[A-Z]$/.test(group)) throw new Error('Enter your TD group as one letter, e.g. D.');
     const campus = ['Paris', 'Nantes'].includes(input?.campus) ? input.campus : 'Paris';
+    const year = [1, 2, 3, 4, 5].includes(Number(input?.year)) ? Number(input.year) : 2;
     const language = ['en', 'fr'].includes(input?.language) ? input.language : 'en';
     const aiLang = ['auto', 'en', 'fr'].includes(input?.aiLanguage) ? input.aiLanguage : 'auto';
-    writeState({ group: group || undefined, campus, language, aiLanguage: aiLang });
+    writeState({ group: group || undefined, campus, year, language, aiLanguage: aiLang });
     applyInstructions();
     return readState();
   });
