@@ -22,6 +22,8 @@ const INSTRUCTIONS = `The learner is an ESILV (De Vinci, Paris) engineering stud
 If a topic builds on earlier courses (for example a previous semester's prerequisite), you may also look in those Moodle courses (school_courses lists past ones too) and in LeoData.
 When planning study time, consider upcoming exams and deadlines. These tools are read-only; never claim to have submitted or changed anything at school.`;
 
+// 'auto' follows the interface language.
+const aiLanguage = (st) => (st.aiLanguage && st.aiLanguage !== 'auto' ? st.aiLanguage : st.language || 'en');
 function text(t, details = {}) { return { content: [{ type: 'text', text: t }], details }; }
 function schema(properties = {}, required = []) { return { type: 'object', properties, required, additionalProperties: false }; }
 
@@ -211,7 +213,7 @@ function activate(ctx) {
   let offInstructions = () => {};
   const applyInstructions = () => {
     offInstructions();
-    offInstructions = ctx.registerInstructions({ agents: AGENTS, text: `${INSTRUCTIONS}\n${LANGUAGE[readState().language] ?? LANGUAGE.en}` });
+    offInstructions = ctx.registerInstructions({ agents: AGENTS, text: `${INSTRUCTIONS}\n${LANGUAGE[aiLanguage(readState())] ?? LANGUAGE.en}` });
   };
   applyInstructions();
   ctx.registerTools({ agents: AGENTS, create: tools });
@@ -221,7 +223,7 @@ function activate(ctx) {
     const st = readState();
     let leo = false;
     try { leo = (await desktop('leo-status')).connected; } catch { /* offline or not desktop */ }
-    return { connected: !!(await getToken()), leo, icsUrl: !!st.icsUrl, hasSchedule: fs.existsSync(icsFile), autoLibrary: st.autoLibrary !== false, group: st.group || '', campus: st.campus || 'Paris', language: st.language || 'en' };
+    return { connected: !!(await getToken()), leo, icsUrl: !!st.icsUrl, hasSchedule: fs.existsSync(icsFile), autoLibrary: st.autoLibrary !== false, group: st.group || '', campus: st.campus || 'Paris', language: st.language || 'en', aiLanguage: st.aiLanguage || 'auto' };
   });
   ctx.handle('leo-login', async () => desktop('leo-login'));
   ctx.handle('set-profile', async (input) => {
@@ -229,7 +231,8 @@ function activate(ctx) {
     if (group && !/^[A-Z]$/.test(group)) throw new Error('Enter your TD group as one letter, e.g. D.');
     const campus = ['Paris', 'Nantes'].includes(input?.campus) ? input.campus : 'Paris';
     const language = ['en', 'fr'].includes(input?.language) ? input.language : 'en';
-    writeState({ group: group || undefined, campus, language });
+    const aiLang = ['auto', 'en', 'fr'].includes(input?.aiLanguage) ? input.aiLanguage : 'auto';
+    writeState({ group: group || undefined, campus, language, aiLanguage: aiLang });
     applyInstructions();
     return readState();
   });

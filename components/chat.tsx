@@ -1756,7 +1756,10 @@ export function Chat({
 							)}
 
 							{messages.map((m, mi) =>
-								m.role === "user" && isSubagentSteer(m) ? (
+								// Fork (DeVinciHarness): a plugin-started session's opening brief
+								// begins with U+2063 and is not shown as a learner bubble.
+								m.role === "user" && m.parts[0]?.type === "text" && (m.parts[0] as { text?: string }).text?.startsWith("⁣") ? null
+								: m.role === "user" && isSubagentSteer(m) ? (
 									// Sub-agent delivery (wake-pipeline steer): NO message bubble — the
 									// artifact card sits in the transcript column directly, full width
 									// and centered like the teacher's artifacts (contracts.ts "THE ASYNC
