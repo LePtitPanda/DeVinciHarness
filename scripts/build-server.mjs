@@ -99,6 +99,33 @@ for (const extra of ["plugins", "dist", path.join("node_modules", "electron")]) 
 	}
 }
 
+// Fork: Next links each server-external package as .next/node_modules/<name>-<hash>
+// -> its real folder. The Windows installer copies that folder instead of keeping
+// the link, so a NESTED package (e.g. @streamdown/code/node_modules/shiki) loses
+// its sibling dependencies (@shikijs/core …). Hoist those siblings to the top
+// level when nothing is there yet; existing top-level versions are never replaced.
+const externals = path.join(STANDALONE, ".next", "node_modules");
+if (exists(externals)) {
+	const top = path.join(STANDALONE, "node_modules");
+	for (const name of fs.readdirSync(externals)) {
+		const link = path.join(externals, name);
+		if (!fs.lstatSync(link).isSymbolicLink()) continue;
+		const real = fs.realpathSync(link);
+		let nested = path.dirname(real); // …/node_modules or …/node_modules/@scope
+		if (path.basename(nested).startsWith("@")) nested = path.dirname(nested);
+		if (path.basename(nested) !== "node_modules" || path.resolve(nested) === path.resolve(top)) continue;
+		for (const entry of fs.readdirSync(nested)) {
+			const scoped = entry.startsWith("@") ? fs.readdirSync(path.join(nested, entry)).map((n) => path.join(entry, n)) : [entry];
+			for (const pkg of scoped) {
+				const to = path.join(top, pkg);
+				if (pkg === path.relative(nested, real) || exists(to)) continue;
+				copyTree(path.join(nested, pkg), to);
+				console.log(`[build-server] hoisted ${pkg} for nested external ${path.relative(STANDALONE, real)}`);
+			}
+		}
+	}
+}
+
 // 3) Sanity: the runtime-read prompt assets must be present (the teacher
 //    agent reads them from disk at request time).
 for (const asset of [
