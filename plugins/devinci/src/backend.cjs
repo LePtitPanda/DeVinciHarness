@@ -22,6 +22,8 @@ const INSTRUCTIONS = `The learner is an ESILV (De Vinci, Paris) engineering stud
 - school_past_exams_browse, school_past_exams_read: LeoData, the students' archive of previous years' exams and documents. Use past exams for realistic practice; say which year/file a question comes from.
 - school_announcements: course announcements. When the learner asks what an exam covers, read the announcements and quote the exact announcement (course, date, words) you rely on. Present the exam scope as your reading of that text, not as fact; if announcements are vague, missing or contradictory, say so instead of guessing.
 If a topic builds on earlier courses (for example a previous semester's prerequisite), you may also look in those Moodle courses (school_courses lists past ones too) and in LeoData.
+Course PDFs come as raw text, so formulas lose their layout (fractions, exponents, indices). When a part you need has math like that, call the pdf tool with the local path given by school_read_file / school_past_exams_read and a precise question; it reads the page images and returns proper LaTeX.
+Always write math in LaTeX: $...$ inline, $...$ for displays, everywhere (explanations, quiz questions, answer options, hints). Never write plain-text math such as f_n, x^2, ||f_n - f||, sqrt(x) or ->.
 When planning study time, consider upcoming exams and deadlines. These tools are read-only; never claim to have submitted or changed anything at school.`;
 
 // 'auto' follows the interface language.
@@ -123,11 +125,13 @@ function activate(ctx) {
   async function courseText(url, signal) {
     const { bytes, name, file } = await courseFile(url, signal);
     const txt = `${file}.txt`;
-    if (fs.existsSync(txt)) return { name, content: fs.readFileSync(txt, 'utf8') };
+    if (fs.existsSync(txt)) return { name, file, content: fs.readFileSync(txt, 'utf8') };
     const content = await extractText(bytes, name);
     if (content !== null) fs.writeFileSync(txt, content);
-    return { name, content };
+    return { name, file, content };
   }
+
+  const pdfHint = (file) => (file && /\.pdf$/i.test(file) ? `\n(Local PDF: ${file} — if formulas below look garbled, call the pdf tool with this path and a precise question.)` : '');
 
   // ── agent tools ──
   const tools = () => [
@@ -186,11 +190,11 @@ function activate(ctx) {
       description: `Read the text of a Moodle course file (PDF or text) by its url from school_course_contents. Long files come in parts of ${PART_CHARS} characters; ask for the next part to continue. Reading a file adds it to the learner's library.`,
       parameters: schema({ url: { type: 'string' }, course: { type: 'string', description: 'Course short name, used to file it in the library' }, part: { type: 'integer', minimum: 1 } }, ['url']),
       async execute(_id, p, signal) {
-        const { name, content } = await courseText(p.url, signal);
+        const { name, file, content } = await courseText(p.url, signal);
         if (content === null) return text(`${name} is not a PDF or text file, so it cannot be read as text. Tell the learner to open it on Moodle.`);
         ctx.events.emit('file-used', { url: p.url, name, course: p.course || '' });
         const parts = Math.max(1, Math.ceil(content.length / PART_CHARS)), part = Math.min(p.part || 1, parts);
-        return text(`${name} — part ${part} of ${parts}\n\n${content.slice((part - 1) * PART_CHARS, part * PART_CHARS)}`);
+        return text(`${name} — part ${part} of ${parts}${pdfHint(file)}\n\n${content.slice((part - 1) * PART_CHARS, part * PART_CHARS)}`);
       },
     },
     {
@@ -231,15 +235,17 @@ function activate(ctx) {
       parameters: schema({ fileId: { type: 'string' }, part: { type: 'integer', minimum: 1 } }, ['fileId']),
       async execute(_id, p) {
         if (!/^[A-Za-z0-9]{1,64}$/.test(p.fileId)) throw new Error('Invalid file id.');
-        const cache = path.join(dir, 'files', `leo-${p.fileId}.txt`);
+        const cache = path.join(dir, 'files', `leo-${p.fileId}.txt`), leoPdf = path.join(dir, 'files', `leo-${p.fileId}.pdf`);
         let content = fs.existsSync(cache) ? fs.readFileSync(cache, 'utf8') : null;
         if (content === null) {
-          content = await extractText(Buffer.from((await desktop('leo-get', { kind: 'file', id: p.fileId })).base64, 'base64'), 'file.pdf');
+          const bytes = Buffer.from((await desktop('leo-get', { kind: 'file', id: p.fileId })).base64, 'base64');
+          fs.writeFileSync(leoPdf, bytes);
+          content = await extractText(bytes, 'file.pdf');
           if (content === null) return text('This LeoData file is not a PDF.');
           fs.writeFileSync(cache, content);
         }
         const parts = Math.max(1, Math.ceil(content.length / PART_CHARS)), part = Math.min(p.part || 1, parts);
-        return text(`part ${part} of ${parts}\n\n${content.slice((part - 1) * PART_CHARS, part * PART_CHARS)}`);
+        return text(`part ${part} of ${parts}${pdfHint(fs.existsSync(leoPdf) ? leoPdf : null)}\n\n${content.slice((part - 1) * PART_CHARS, part * PART_CHARS)}`);
       },
     },
   ];
