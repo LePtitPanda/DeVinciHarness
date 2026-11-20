@@ -86,7 +86,7 @@ import { NativeSubscriptionBackgroundAccess } from "./subscription-connections";
  *  with the resolved default (owner: the hint ALWAYS names the default). */
 const SLOT_META: Record<ModelSlotName, { label: string; roster: string }> = {
 	strong: { label: "Strong", roster: "The main model for your sessions" },
-	cheap: { label: "Cheap", roster: "The assistants that research, build demos, and grade your work" },
+	cheap: { label: "Sub-agents", roster: "The assistants that research, build demos, and grade your work" },
 	vision: { label: "Vision", roster: "The assistants that draw and read PDFs" },
 };
 
@@ -791,6 +791,9 @@ export function AgentSection({
 						</SettingsRow>
 					);
 				})}
+				{MODEL_SLOTS.some((slot) => models?.[slot]?.model?.provider === "nvidia") && (
+					<p data-testid="nvidia-note" className="px-1 text-[11px] leading-relaxed text-muted-foreground/80">NVIDIA's free models can be retired or swapped without notice, and they get slow or refuse requests when traffic is high. If a model stops working, pick another one here.</p>
+				)}
 				<SettingsRow
 					label="Concurrent worker requests"
 					hint="Maximum simultaneous background-worker model requests. Direct conversations are not limited."

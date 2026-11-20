@@ -551,7 +551,9 @@ export function useDictation({ append, destination = "primary", disabled = false
 		const gen = ++genRef.current;
 		let language: DictationLanguage;
 		try {
-			language = await getLanguage();
+			// Fork: dictation follows the app language (English/French) set in Appearance.
+			const appLang = (() => { try { return localStorage.getItem("dv.lang"); } catch { return null; } })();
+			language = appLang === "en" || appLang === "fr" ? appLang : await getLanguage();
 		} catch (e) {
 			if (gen !== genRef.current) return;
 			setError(e instanceof Error ? e.message : "Dictation language unavailable");

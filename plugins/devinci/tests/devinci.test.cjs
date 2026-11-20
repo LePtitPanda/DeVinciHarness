@@ -105,3 +105,19 @@ test('finder: works without LeoData', async () => {
   });
   assert.deepEqual(r.picks, []);
 });
+
+test('Moodle contents hide video sections, video activities and their handouts', () => {
+  const { withoutVideos } = require('../src/moodle.cjs');
+  const out = withoutVideos([
+    { name: 'Vidéos - Chapitre 1 : Séries', modules: [{ name: '01 Fiche PDF', modname: 'resource' }] },
+    { name: '- Vidéo 4 : Critère de comparaison', modules: [{ name: '04 Fiche PDF', modname: 'resource' }] },
+    { name: 'Cours', modules: [
+      { name: 'Vidéo 06 Le critère', modname: 'url' },
+      { name: 'Lecture', modname: 'kalvidres' },
+      { name: 'Slides', modname: 'resource', contents: [{ type: 'file', filename: 'a.pdf', mimetype: 'application/pdf' }, { type: 'file', filename: 'b.mp4', mimetype: 'video/mp4' }] },
+    ] },
+  ]);
+  assert.deepEqual(out.map((s) => s.name), ['Cours']);
+  assert.deepEqual(out[0].modules.map((m) => m.name), ['Slides']);
+  assert.deepEqual(out[0].modules[0].contents.map((c) => c.filename), ['a.pdf']);
+});

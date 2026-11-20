@@ -27,6 +27,9 @@ Always write math in LaTeX: $...$ inline, $...$ for displays, everywhere (explan
 When planning study time, consider upcoming exams and deadlines. These tools are read-only; never claim to have submitted or changed anything at school.`;
 
 // 'auto' follows the interface language.
+// Some open models (e.g. Nemotron) narrate every step; keep the learner's screen quiet.
+const BREVITY = 'Keep your planning, progress notes and reasoning in your private thinking, never in your reply. Call tools without announcing them, do not recap what tools returned, and if a tool call fails fix it and retry silently. Before the first question, the learner should see only a short note: what you will study and where you got it (which file, announcement or exam). Then go straight to the questions. Afterwards, speak only to teach, ask or answer, briefly.';
+
 const aiLanguage = (st) => (st.aiLanguage && st.aiLanguage !== 'auto' ? st.aiLanguage : st.language || 'en');
 function text(t, details = {}) { return { content: [{ type: 'text', text: t }], details }; }
 function schema(properties = {}, required = []) { return { type: 'object', properties, required, additionalProperties: false }; }
@@ -254,7 +257,7 @@ function activate(ctx) {
     offInstructions();
     const st = readState(), language = LANGUAGE[aiLanguage(st)] ?? LANGUAGE.en;
     // De Vinci features off: keep only the answer-language rule.
-    offInstructions = ctx.registerInstructions({ agents: AGENTS, text: st.school === false ? language : `${INSTRUCTIONS}\n${language}` });
+    offInstructions = ctx.registerInstructions({ agents: AGENTS, text: st.school === false ? `${BREVITY}\n${language}` : `${INSTRUCTIONS}\n${BREVITY}\n${language}` });
   };
   applyInstructions();
   ctx.registerTools({ agents: AGENTS, create: () => (readState().school === false ? [] : tools()) });

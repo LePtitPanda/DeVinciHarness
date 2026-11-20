@@ -4,11 +4,12 @@ import { OB } from './strings.js';
 import NVIDIA_SHOT from './assets/nvidia-key.webp';
 
 const RSS = '<svg viewBox="0 0 32 32" width="32" height="32" aria-hidden="true"><rect width="32" height="32" rx="6" fill="#f26522"/><circle cx="9" cy="23" r="3" fill="#fff"/><path d="M6 14a12 12 0 0 1 12 12h-4a8 8 0 0 0-8-8z" fill="#fff"/><path d="M6 6a20 20 0 0 1 20 20h-4A16 16 0 0 0 6 10z" fill="#fff"/></svg>';
-const NVIDIA_MODELS = {
-  strong: { model: { provider: 'nvidia', id: 'nvidia/nemotron-3-ultra-550b-a55b' }, thinkingLevel: 'medium' },
-  cheap: { model: { provider: 'nvidia', id: 'nvidia/nemotron-3-ultra-550b-a55b' }, thinkingLevel: 'medium' },
-  vision: { model: { provider: 'nvidia', id: 'nvidia/nemotron-3.5-super-vl-120b-a12b' }, thinkingLevel: 'low' },
-};
+const slot = (provider, id, thinkingLevel) => ({ model: { provider, id }, thinkingLevel });
+const NV_ULTRA = 'nvidia/nemotron-3-ultra-550b-a55b', NV_VL = 'nvidia/nemotron-3.5-super-vl-120b-a12b', NV_LIGHT = 'nvidia/nemotron-3.5-lightning-30b-a3b';
+const CLAUDE_INSTALL = 'irm https://claude.ai/install.ps1 | iex';
+const AGY_INSTALL = 'irm https://antigravity.google/cli/install.ps1 | iex';
+// Highest version first, e.g. gemini-4-… before gemini-3.8-….
+const byVersion = (a, b) => b.id.localeCompare(a.id, 'en', { numeric: true });
 
 export function runOnboarding(ctx, el, status) {
   let lang = status.language === 'fr' ? 'fr' : 'en';
@@ -117,13 +118,113 @@ export function runOnboarding(ctx, el, status) {
       if (!a.text.startsWith('nvapi-')) { say(t('nvBadKey')); continue; }
       try { await put('/api/keys/NVIDIA_API_KEY', { value: a.text }); break; } catch (e) { say(t('nvSaveFailed', e.message)); }
     }
-    say(t('nvSaved'), t('nvModelsQ'), el('ul', { class: 'dv-ob-steps' }, el('li', {}, t('nvRec1')), el('li', {}, t('nvRec2'))));
-    if (!(await yesNo(t('nvRecommended'), t('nvCustom')))) { say(t('laterAgent')); return true; }
+    say(t('nvSaved'), t('nvStrongQ'));
+    const strong = (await ask({ choices: [[NV_ULTRA, t('nvUltra')], [NV_VL, t('nvVl')]] })).choice;
+    say(t('nvSubQ'));
+    const sub = (await ask({ choices: [[NV_LIGHT, t('nvLight')], [NV_VL, t('nvVlSmart')]] })).choice;
+    say(t('nvVision'));
+    await setModels({ strong: slot('nvidia', strong, 'medium'), cheap: slot('nvidia', sub, 'medium'), vision: slot('nvidia', NV_VL, 'low') });
+    return true;
+  }
+
+  // Saves slot picks, keeping only models the catalog really has (and thinking
+  // levels they support); a missing pick falls back to the provider's first model.
+  async function setModels(picks) {
     try {
-      await api('/api/models'); // refreshes the live NVIDIA list now that the key exists
-      await put('/api/settings/models', NVIDIA_MODELS);
-      say(t('nvDone'));
-    } catch (e) { say(t('nvModelsFailed', e.message), t('laterAgent')); }
+      const { models: catalog = [] } = await api('/api/models');
+      const out = {};
+      for (const [name, pick] of Object.entries(picks)) {
+        const ofProvider = catalog.filter((m) => m.provider === pick.model.provider);
+        const m = ofProvider.find((x) => x.id === pick.model.id) ?? ofProvider[0];
+        if (!m) throw new Error(pick.model.provider);
+        out[name] = { model: { provider: m.provider, id: m.id }, ...(pick.thinkingLevel && m.supportedLevels?.includes(pick.thinkingLevel) ? { thinkingLevel: pick.thinkingLevel } : {}) };
+      }
+      await put('/api/settings/models', out);
+      say(t('modelsSet'));
+    } catch (e) { say(t('modelsFailed', e.message), t('laterAgent')); }
+  }
+
+  // Polls check() until it returns a value (not undefined), with a Cancel button.
+  function waitUntil(check, ms = 180000) {
+    return new Promise((resolve) => {
+      let over = false;
+      const end = (v) => { if (over) return; over = true; dock.replaceChildren(); resolve(v); };
+      ask({ choices: [['cancel', t('cancel')]] }).then(() => end('cancel'));
+      const started = Date.now();
+      (async () => {
+        while (!over) {
+          try { const v = await check(); if (v !== undefined) return end(v); } catch { /* keep polling */ }
+          if (Date.now() - started > ms) return end(false);
+          await new Promise((r) => setTimeout(r, 1500));
+        }
+      })();
+    });
+  }
+
+  const command = (cmd) => {
+    const btn = el('button', { type: 'button', class: 'dv-ob-copy' }, t('copy'));
+    btn.onclick = () => navigator.clipboard?.writeText(cmd).then(() => { btn.textContent = t('copied'); }, () => {});
+    return el('div', { class: 'dv-ob-cmd' }, el('code', {}, cmd), btn);
+  };
+
+  async function chatgpt() {
+    const bridge = window.lh?.chatgpt;
+    if (!bridge) { say(t('desktopOnly')); return false; }
+    say(t('gptNotice'));
+    if (!(await yesNo(t('gptSignIn'), t('useOther')))) return false;
+    for (;;) {
+      try { await bridge.login(); } catch (e) { say(t('signInFailed', e.message)); }
+      say(t('waitBrowser'));
+      const ok = await waitUntil(async () => {
+        const st = await bridge.status();
+        return st.pending ? undefined : st.accounts.some((a) => a.connected);
+      });
+      if (ok === 'cancel') { await Promise.resolve(bridge.cancel()).catch(() => {}); return false; }
+      if (ok) break;
+      say(t('notSignedIn'));
+      if (!(await yesNo(t('retry'), t('useOther')))) return false;
+    }
+    await Promise.resolve(bridge.consent(true)).catch(() => {}); // the notice said sub-agents use the plan too
+    say(t('gptDone'), t('gptModels'));
+    await setModels({ strong: slot('chatgpt', 'gpt-6.1-sol', 'high'), cheap: slot('chatgpt', 'gpt-6-luna', 'medium'), vision: slot('chatgpt', 'gpt-6.1-sol', 'medium') });
+    return true;
+  }
+
+  async function claude() {
+    say(t('clIntro'), el('ol', { class: 'dv-ob-steps' }, el('li', {}, t('cl1'), command(CLAUDE_INSTALL)), el('li', {}, t('cl2')), el('li', {}, t('cl3'))));
+    for (;;) {
+      if ((await ask({ choices: [['check', t('checkNow')], ['other', t('useOther')]] })).choice === 'other') return false;
+      try {
+        await put('/api/settings/claudeCode', { enabled: true });
+        const st = await api('/api/claude-code', { cache: 'no-store', headers: { 'x-learnharness-claude-code': '1' } });
+        if (st.state === 'not-found') { say(t('clNotFound')); continue; }
+        if (st.state === 'update-required') { say(t('clUpdate', st.version, st.minimumVersion)); continue; }
+        break;
+      } catch (e) { say(t('connectFailed', 'Claude Code', e.message)); }
+    }
+    say(t('clFound'), t('clStrongQ'));
+    const strong = (await ask({ choices: [['opus', t('clOpus')], ['sonnet', t('clSonnet')]] })).choice;
+    say(t('clModels'));
+    await setModels({ strong: slot('claude-code', strong, 'high'), cheap: slot('claude-code', 'haiku', 'medium'), vision: slot('claude-code', 'sonnet', 'medium') });
+    return true;
+  }
+
+  async function gemini() {
+    say(t('gmIntro'), el('ol', { class: 'dv-ob-steps' }, el('li', {}, t('gm1'), command(AGY_INSTALL)), el('li', {}, t('gm2')), el('li', {}, t('gm3'))));
+    let models = [];
+    for (;;) {
+      if ((await ask({ choices: [['check', t('checkNow')], ['other', t('useOther')]] })).choice === 'other') return false;
+      try { models = ((await api('/api/models')).models || []).filter((m) => m.provider === 'antigravity'); } catch { models = []; }
+      if (models.length) break;
+      say(t('gmNotFound'));
+    }
+    const gem = models.filter((m) => /^gemini/.test(m.id)).sort(byVersion);
+    const pro = gem.filter((m) => !/flash/.test(m.id));
+    const strong = pro.find((m) => /-high$/.test(m.id)) ?? pro[0] ?? gem[0] ?? models[0];
+    const sub = gem.find((m) => /flash.*-medium$/.test(m.id)) ?? gem.find((m) => /flash/.test(m.id)) ?? strong;
+    const vision = pro.find((m) => m.id === strong.id.replace(/-high$/, '-medium')) ?? strong;
+    say(t('gmSafe'), t('gmModels', strong.name, sub.name, vision.name));
+    await setModels({ strong: slot('antigravity', strong.id), cheap: slot('antigravity', sub.id), vision: slot('antigravity', vision.id) });
     return true;
   }
 
@@ -231,10 +332,17 @@ export function runOnboarding(ctx, el, status) {
 
     say(t('aiQ'));
     const current = await ctx.call('models').catch(() => ({}));
-    const choices = [['nvidia', t('aiNvidia')], ['custom', t('aiCustom')]];
+    const choices = [['nvidia', t('aiNvidia')], ['chatgpt', t('aiChatgpt')], ['claude', t('aiClaude')], ['gemini', t('aiGemini')], ['custom', t('aiCustom')]];
     if (current.strong) choices.push(['keep', t('aiKeep', current.strong.split(' · ').pop())]);
-    const pick = (await ask({ choices })).choice;
-    if (pick === 'custom' || (pick === 'nvidia' && !(await nvidia()))) say(t('laterAgent'));
+    const flows = { nvidia, chatgpt, claude, gemini };
+    // "Use something else" from a provider comes back to this choice.
+    for (;;) {
+      const pick = (await ask({ choices })).choice;
+      if (pick === 'keep') break;
+      if (pick === 'custom') { say(t('laterAgent')); break; }
+      if (await flows[pick]()) break;
+      say(t('aiQ'));
+    }
     summary.ai = true;
   }
 

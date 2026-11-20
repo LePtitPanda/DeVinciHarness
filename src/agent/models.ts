@@ -14,6 +14,7 @@ import { lazyApi, lazyStream } from "@earendil-works/pi-ai/api/lazy";
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import { type ModelRole } from "../../config.ts";
 import { DEFAULT_THINKING_ORDER } from "../core/settings.ts";
+import { agyCatalogSettled, antigravityProvider, isAntigravityAvailable } from "./providers/antigravity.ts";
 import packageMetadata from "../../package.json" with { type: "json" };
 import { chatGPTModel } from "./chatgpt-bridge.ts";
 import { chatGPTStream } from "./chatgpt-stream.ts";
@@ -93,6 +94,7 @@ export function piModels() {
 				: provider.id === "nvidia" ? withLiveNvidia(provider) : provider);
 		}
 		collection.setProvider(createClaudeCodeProvider(streamClaudeCode));
+		collection.setProvider(antigravityProvider());
 	}
 	providerSource?.sync(collection);
 	return collection;
@@ -110,6 +112,11 @@ function withLiveNvidia<T extends { getModels(): readonly Model<Api>[]; getAllMo
 		getAllModels: () => [...nvidiaModels(bundled), ...(provider.getAllModels?.() ?? []).filter((m) => !bundled.includes(m as Model<Api>))],
 	};
 }
+/** Fork: agy installed (or signed in) after startup gets its live model list. */
+export function refreshAntigravityCatalog(): void {
+	if (!agyCatalogSettled() && isAntigravityAvailable()) piModels().setProvider(antigravityProvider());
+}
+
 export function refreshNvidiaCatalog(key: string | undefined): Promise<void> {
 	piModels();
 	return refreshNvidiaModels(nvidiaBundled, key);

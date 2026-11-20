@@ -52,7 +52,7 @@ function createMoodle({ getToken, fetchImpl = fetch }) {
       return list.map((c) => ({ id: c.id, name: decodeEntities(c.fullname), short: decodeEntities(c.shortname), start: day(c.startdate), end: day(c.enddate), past: !!c.enddate && c.enddate * 1000 < Date.now() }));
     },
     async contents(courseId, signal) {
-      return call('core_course_get_contents', { courseid: courseId }, signal);
+      return withoutVideos(await call('core_course_get_contents', { courseid: courseId }, signal));
     },
     async deadlines(days, signal) {
       const from = Math.floor(Date.now() / 1000);
@@ -93,4 +93,17 @@ function stripHtml(html) {
   return decodeEntities(String(html).replace(/<br\s*\/?>|<\/p>|<\/li>/gi, '\n').replace(/<[^>]+>/g, '')).replace(/\n{3,}/g, '\n\n').trim();
 }
 
-module.exports = { createMoodle, flatten, stripHtml, decodeEntities, SITE, FILE_PREFIX, READ_ONLY };
+// Video lessons and the handouts filed under them are off-limits to the AI:
+// a section or module named "Vidéo…", video activities, and video files.
+const VIDEO_NAME = /^[^\p{L}\d]*vid[eé]os?(?!\p{L})/iu;
+const VIDEO_MODS = new Set(['kalvidres', 'kalvidpres', 'videotime', 'video', 'videofile', 'pod', 'mediasite', 'panopto']);
+function withoutVideos(sections) {
+  return (sections || []).filter((s) => !VIDEO_NAME.test(s.name || '')).map((s) => ({
+    ...s,
+    modules: (s.modules || [])
+      .filter((m) => !VIDEO_NAME.test(m.name || '') && !VIDEO_MODS.has(m.modname))
+      .map((m) => ({ ...m, contents: (m.contents || []).filter((c) => !String(c.mimetype || '').startsWith('video/')) })),
+  }));
+}
+
+module.exports = { withoutVideos, createMoodle, flatten, stripHtml, decodeEntities, SITE, FILE_PREFIX, READ_ONLY };

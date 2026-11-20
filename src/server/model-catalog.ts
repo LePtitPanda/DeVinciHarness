@@ -19,7 +19,7 @@
 
 import { clampThinkingLevel, getSupportedThinkingLevels, type Api, type Model } from "@earendil-works/pi-ai";
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
-import { piModels, refreshNvidiaCatalog } from "../agent/models.ts";
+import { piModels, refreshAntigravityCatalog, refreshNvidiaCatalog } from "../agent/models.ts";
 import { customProviderAvailable } from "./custom-provider.ts";
 import { chatGPTConnected, chatGPTModel, chatGPTModels, refreshChatGPTModels } from "../agent/chatgpt-bridge.ts";
 import { NATIVE_SUBSCRIPTIONS } from "../core/contracts/subscriptions.ts";
@@ -30,6 +30,7 @@ export async function refreshConnectionCatalog(provider?: string): Promise<void>
 		!provider || provider === "chatgpt" ? refreshChatGPTModels(piModels().getModels("openai").filter((m): m is Model<"openai-responses"> => m.api === "openai-responses")) : Promise.resolve(),
 		!provider || nativeSubscriptionId(provider) ? refreshSubscriptionModels() : Promise.resolve(),
 		!provider || provider === "nvidia" ? refreshNvidiaCatalog(keyValue("NVIDIA_API_KEY")) : Promise.resolve(),
+		!provider || provider === "antigravity" ? Promise.resolve(refreshAntigravityCatalog()) : Promise.resolve(),
 	]);
 }
 function connectionModel(provider: string, id: string): Model<Api> | undefined {
@@ -53,6 +54,7 @@ import type { EffectiveModelSpec, EffectiveSlot } from "../core/settings-resolut
 import { AUTH_PROVIDER_KEYS, CUSTOM_PROVIDER } from "../core/auth-keys.ts";
 import { claudeCodeAvailable } from "./claude-code-config.ts";
 import { CLAUDE_CODE_PROVIDER } from "../agent/claude-code/constants.ts";
+import { isAntigravityAvailable } from "../agent/providers/antigravity.ts";
 import {
 	BACKGROUND_MODEL_ROLES,
 	MODEL_SLOTS,
@@ -156,6 +158,7 @@ export function catalogProviders(): CatalogProvider[] {
 	})).concat([
 		{ id: "chatgpt", envVar: "", keyPresent: chatGPTConnected() },
 		{ id: CLAUDE_CODE_PROVIDER, envVar: "", keyPresent: claudeCodeAvailable() },
+		{ id: "antigravity", envVar: "", keyPresent: isAntigravityAvailable() },
 		...NATIVE_SUBSCRIPTIONS.map((p) => ({ id: p.logicalId, envVar: "", keyPresent: nativeSubscriptionConnected(p.providerId) })),
 		// The custom endpoint: a row only when usable (base URL set). keyPresent
 		// reflects usability, not key presence (keyless local servers are allowed).
