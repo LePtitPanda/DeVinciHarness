@@ -252,10 +252,12 @@ function activate(ctx) {
   let offInstructions = () => {};
   const applyInstructions = () => {
     offInstructions();
-    offInstructions = ctx.registerInstructions({ agents: AGENTS, text: `${INSTRUCTIONS}\n${LANGUAGE[aiLanguage(readState())] ?? LANGUAGE.en}` });
+    const st = readState(), language = LANGUAGE[aiLanguage(st)] ?? LANGUAGE.en;
+    // De Vinci features off: keep only the answer-language rule.
+    offInstructions = ctx.registerInstructions({ agents: AGENTS, text: st.school === false ? language : `${INSTRUCTIONS}\n${language}` });
   };
   applyInstructions();
-  ctx.registerTools({ agents: AGENTS, create: tools });
+  ctx.registerTools({ agents: AGENTS, create: () => (readState().school === false ? [] : tools()) });
 
   // ── frontend operations ──
   ctx.handle('status', async () => {
@@ -269,7 +271,19 @@ function activate(ctx) {
   ctx.handle('models', async () => {
     const slots = (await ctx.inference.catalog()).slots || {};
     const name = (pin) => (pin?.model ? `${pin.model.provider} · ${pin.model.id}` : null);
-    return { strong: name(slots.strong), cheap: name(slots.cheap) };
+    return { strong: name(slots.strong), cheap: name(slots.cheap), vision: name(slots.vision) };
+  });
+  // "Run setup again": back to a fresh install. Signing out of Moodle also clears the
+  // LeoData cookies (same session). The import list stays so files aren't imported twice.
+  ctx.handle('reset', async () => {
+    try { await desktop('logout'); } catch { /* not the desktop app */ }
+    token = null; tokenLoaded = true;
+    fs.rmSync(icsFile, { force: true });
+    const { imported } = readState();
+    fs.writeFileSync(stateFile, JSON.stringify({ imported }));
+    events = null; icsFetchedAt = 0;
+    applyInstructions();
+    return { ok: true };
   });
   // Partial update: fields left out keep their saved value.
   ctx.handle('set-profile', async (input = {}) => {

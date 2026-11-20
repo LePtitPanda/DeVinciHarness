@@ -114,11 +114,24 @@ export function activate(ctx) {
         const s = await ctx.call('status');
         if (signal.aborted) return;
         const note = el('span', { class: 'dv-saved' });
+        const enabled = el('input', { type: 'checkbox', id: 'dv-enabled' });
+        enabled.checked = s.school;
+        enabled.addEventListener('change', async () => { await ctx.call('set-profile', { school: enabled.checked }); location.reload(); });
+        const feature = section('De Vinci', field(t('features'), el('label', { class: 'dv-check', for: 'dv-enabled' }, enabled, t('featuresOn')), t('featuresHelp')));
+        const setup = section(t('setup'), field(t('setupAgain'), button({ label: t('runSetup'), variant: 'outline', onClick: async () => {
+          if (!window.confirm(t('resetConfirm'))) return;
+          await ctx.call('reset');
+          await fetch('/api/settings/models', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: '{}' });
+          await fetch('/api/keys/NVIDIA_API_KEY', { method: 'DELETE' });
+          location.href = '/'; // fresh window: the setup chat starts on load (opening it over this dialog blocked typing)
+        } }, signal)));
+        if (!s.school) return root.replaceChildren(feature, setup);
         root.replaceChildren(
+          feature,
           section(t('profile'), ...profileFields(s, note)),
           section(t('connections'), moodleField(s, signal, render), leoField(s, signal, render), scheduleField(s, signal, render)),
           section(t('library'), libraryField(s)),
-          section(t('setup'), field(t('setupAgain'), button({ label: t('runSetup'), variant: 'outline', onClick: async () => { await ctx.call('set-setup', { step: 0, done: false }); runOnboarding(ctx, el, s); } }, signal))),
+          setup,
           note,
         );
       };
@@ -142,6 +155,7 @@ export function activate(ctx) {
         const status = await ctx.call('status');
         if (signal.aborted) return;
         if (status.language !== lang) { try { localStorage.setItem(LANG_KEY, status.language); } catch { /* ignore */ } }
+        if (!status.school) return root.replaceChildren(el('h1', {}, 'De Vinci'), el('section', { class: 'dv-card dv-ask' }, el('p', {}, t('featuresOff')), button({ label: t('openSettings'), variant: 'outline', onClick: () => ctx.app.openSettings() }, signal)));
         const overview = await ctx.call('overview');
         if (signal.aborted) return;
 

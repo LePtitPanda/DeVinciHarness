@@ -55,7 +55,7 @@ export function runOnboarding(ctx, el, status) {
     return body;
   };
   const put = (url, body) => api(url, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-  const summary = { moodle: false, leo: false, timetable: false, profile: '', ai: '' };
+  const summary = { moodle: false, leo: false, timetable: false, campus: 'Paris', year: 2 };
 
   async function connect(op, name) {
     for (;;) {
@@ -101,7 +101,7 @@ export function runOnboarding(ctx, el, status) {
     say(t('yearQ'));
     const year = Number((await ask({ choices: [1, 2, 3, 4, 5].map((n) => [String(n), t('yearN', n)]) })).choice);
     await ctx.call('set-profile', { group, campus, year });
-    summary.profile = [group && t('groupN', group), campus, t('yearN', year)].filter(Boolean).join(' · ');
+    Object.assign(summary, { group, campus, year });
   }
 
   async function nvidia() {
@@ -118,33 +118,91 @@ export function runOnboarding(ctx, el, status) {
       try { await put('/api/keys/NVIDIA_API_KEY', { value: a.text }); break; } catch (e) { say(t('nvSaveFailed', e.message)); }
     }
     say(t('nvSaved'), t('nvModelsQ'), el('ul', { class: 'dv-ob-steps' }, el('li', {}, t('nvRec1')), el('li', {}, t('nvRec2'))));
-    if (!(await yesNo(t('nvRecommended'), t('nvCustom')))) { say(t('laterAgent')); summary.ai = 'NVIDIA'; return true; }
+    if (!(await yesNo(t('nvRecommended'), t('nvCustom')))) { say(t('laterAgent')); return true; }
     try {
       await api('/api/models'); // refreshes the live NVIDIA list now that the key exists
       await put('/api/settings/models', NVIDIA_MODELS);
-      say(t('nvDone')); summary.ai = 'Nemotron 3 Ultra · 3.5 Super VL';
-    } catch (e) { say(t('nvModelsFailed', e.message), t('laterAgent')); summary.ai = 'NVIDIA'; }
+      say(t('nvDone'));
+    } catch (e) { say(t('nvModelsFailed', e.message), t('laterAgent')); }
     return true;
   }
 
-  function graph() {
-    const nodes = [['moodle', 'Moodle'], ['leo', 'LeoData'], ['timetable', t('timetable')], ['profile', summary.profile || t('profile')], ['ai', summary.ai || t('aiLater')]]
-      .filter(([key]) => key in summary).map(([key, label]) => [label, !!summary[key]]);
-    const W = 460, H = 230, cx = W / 2, cy = H / 2;
-    const ns = 'http://www.w3.org/2000/svg';
+  // The closing screen: what's set up, drawn like the app's knowledge graph
+  // (primary-colored nodes, thin muted edges, tinted cluster areas with a label).
+  async function finalScreen() {
+    const models = summary.ai === undefined ? {} : await ctx.call('models').catch(() => ({}));
+    const short = (name) => { const id = String(name || '').split(' · ').pop().split('/').pop(); return id.length > 24 ? `${id.slice(0, 23)}…` : id; };
+    const langName = { en: 'English', fr: 'Français', auto: t('sameLang') };
+    const clusters = [
+      summary.school && { label: t('cSchool'), hue: 210, nodes: [['Moodle', summary.moodle], ['LeoData', summary.leo], [t('timetable'), summary.timetable]] },
+      { label: t('cYou'), hue: 145, nodes: [
+        [`${t('cApp')} · ${langName[lang]}`, true], [`${t('cAi')} · ${langName[summary.aiLang] || ''}`, true],
+        ...(summary.school ? [[summary.group ? t('groupN', summary.group) : t('cNoGroup'), !!summary.group], [summary.campus, true], [t('yearN', summary.year), true]] : []),
+      ] },
+      { label: t('cModels'), hue: 280, nodes: models.strong
+        ? [[`${t('cStrong')} · ${short(models.strong)}`, true], [`${t('cCheap')} · ${short(models.cheap || models.strong)}`, true], [`${t('cVision')} · ${short(models.vision || models.strong)}`, !!models.vision]]
+        : [[t('aiLater'), false]] },
+    ].filter(Boolean);
+
+    const W = 960, H = 680, cx = W / 2, cy = H / 2, ns = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(ns, 'svg');
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('class', 'dv-ob-graph'); svg.setAttribute('role', 'img');
-    svg.setAttribute('aria-label', nodes.map(([n, on]) => `${n}: ${on ? 'on' : 'off'}`).join(', '));
-    const add = (tag, attrs, text) => { const n = document.createElementNS(ns, tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); if (text) n.textContent = text; svg.append(n); return n; };
-    nodes.forEach(([label, on], i) => {
-      const a = -Math.PI / 2 + (i * 2 * Math.PI) / nodes.length, x = cx + Math.cos(a) * 140, y = cy + Math.sin(a) * 82;
-      add('line', { x1: cx, y1: cy, x2: x, y2: y, class: on ? 'on' : 'off', style: `animation-delay:${i * 120}ms` });
-      add('circle', { cx: x, cy: y, r: 6, class: on ? 'on' : 'off' });
-      add('text', { x, y: y + (y > cy ? 20 : -12), 'text-anchor': 'middle' }, label.length > 30 ? `${label.slice(0, 29)}…` : label);
+    svg.setAttribute('aria-label', clusters.map((c) => `${c.label}: ${c.nodes.map(([n, on]) => `${n}${on ? '' : ' (off)'}`).join(', ')}`).join('; '));
+    const add = (parent, tag, attrs, text) => { const n = document.createElementNS(ns, tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); if (text) n.textContent = text; parent.append(n); return n; };
+    // Same recipe as the knowledge graph: each cluster's links and dots, thickened and blurred
+    // into a faint tint of its hue (ring lightness 60 dark / 42 light, alpha 0.2), no outline.
+    const bg = getComputedStyle(document.body).backgroundColor.match(/\d+/g)?.map(Number) ?? [0, 0, 0];
+    const dark = bg[0] * 0.299 + bg[1] * 0.587 + bg[2] * 0.114 < 128;
+    const ring = dark ? 60 : 42, labelL = dark ? 78 : 30;
+    const defs = add(svg, 'defs', {});
+    add(add(defs, 'filter', { id: 'dv-ob-haze', x: '-50%', y: '-50%', width: '200%', height: '200%' }), 'feGaussianBlur', { stdDeviation: 22 });
+    const areas = add(svg, 'g', { filter: 'url(#dv-ob-haze)', opacity: 0.2 }), edges = add(svg, 'g', { class: 'edges' }), labels = add(svg, 'g', {}), dots = add(svg, 'g', {});
+    const rand = (a, b) => a + Math.random() * (b - a);
+    const turn = rand(-0.35, 0.35);
+    let delay = 0;
+    clusters.forEach((c, ci) => {
+      const angle = turn - Math.PI / 2 + Math.PI / clusters.length + (ci * 2 * Math.PI) / clusters.length;
+      const ccx = cx + Math.cos(angle) * rand(255, 300), ccy = cy + Math.sin(angle) * rand(180, 215), r = 50 + c.nodes.length * 7;
+      const color = `hsl(${c.hue} 65% ${ring}%)`;
+      // Loose, uneven placement: an irregular ring with jitter, so it reads as a laid-out graph.
+      const start = rand(0, Math.PI * 2);
+      const pts = [];
+      c.nodes.forEach((_, i) => {
+        if (c.nodes.length === 1) return pts.push([ccx, ccy]);
+        // Random spot near its slot; retry while it would crowd a neighbour's label.
+        let p;
+        for (let tries = 0; tries < 40; tries++) {
+          const a = start + (i * 2 * Math.PI) / c.nodes.length + rand(-0.35, 0.35), d = r * rand(0.6, 1.1);
+          p = [ccx + Math.cos(a) * d, ccy + Math.sin(a) * d * 0.85];
+          if (pts.every((q) => Math.abs(q[0] - p[0]) > 110 || Math.abs(q[1] - p[1]) > 30)) break;
+        }
+        pts.push(p);
+      });
+      const links = [];
+      pts.forEach((_, i) => { if (i > 0) links.push([Math.floor(rand(0, i)), i]); });
+      if (pts.length > 3) links.push([0, pts.length - 1]);
+      const near = pts.reduce((best, p) => (Math.hypot(p[0] - cx, p[1] - cy) < Math.hypot(best[0] - cx, best[1] - cy) ? p : best));
+      for (const [a, b] of links) {
+        add(areas, 'line', { x1: pts[a][0], y1: pts[a][1], x2: pts[b][0], y2: pts[b][1], stroke: color, 'stroke-width': 40, 'stroke-linecap': 'round' });
+        add(edges, 'line', { x1: pts[a][0], y1: pts[a][1], x2: pts[b][0], y2: pts[b][1], class: c.nodes[a][1] && c.nodes[b][1] ? '' : 'off' });
+      }
+      for (const p of pts) add(areas, 'circle', { cx: p[0], cy: p[1], r: 34, fill: color });
+      add(edges, 'line', { x1: cx, y1: cy, x2: near[0], y2: near[1] });
+      const top = Math.min(...pts.map((p) => p[1]));
+      add(labels, 'text', { x: ccx, y: top - 34, 'text-anchor': 'middle', class: 'cluster', fill: `hsl(${c.hue} 55% ${labelL}% / 0.85)` }, c.label);
+      c.nodes.forEach(([label, on], i) => {
+        const g = add(dots, 'g', { class: `node${on ? '' : ' off'}`, style: `animation-delay:${(delay += 70)}ms` });
+        add(g, 'circle', { cx: pts[i][0], cy: pts[i][1], r: 4.5 });
+        add(g, 'text', { x: pts[i][0], y: pts[i][1] + 19, 'text-anchor': 'middle' }, label);
+      });
     });
-    add('circle', { cx, cy, r: 16, class: 'hub' });
-    add('text', { x: cx, y: cy + 4, 'text-anchor': 'middle', class: 'hub-label' }, 'V');
-    return svg;
+    const hub = add(dots, 'g', { class: 'node hub' });
+    add(hub, 'circle', { cx, cy, r: 7 });
+    add(hub, 'text', { x: cx, y: cy - 16, 'text-anchor': 'middle' }, 'DeVinciHarness');
+
+    const start = el('div', { class: 'dv-ob-start' });
+    overlay.replaceChildren(el('div', { class: 'dv-ob-final' }, el('h1', {}, t('thanks')), el('p', { class: 'dv-ob-muted' }, t('thanksSub')), svg, start));
+    return new Promise((resolve) => ctx.ui.mountButton(start, { label: t('start'), onClick: resolve }, { signal: ctx.signal }));
   }
 
   async function flow() {
@@ -154,11 +212,13 @@ export function runOnboarding(ctx, el, status) {
     try { localStorage.setItem('dv.lang', lang); } catch { /* per-window convenience only */ }
 
     say(t('aiLangQ'));
-    await ctx.call('set-profile', { aiLanguage: (await ask({ choices: [['auto', t('sameLang')], ['en', 'English'], ['fr', 'Français']] })).choice });
+    summary.aiLang = (await ask({ choices: [['auto', t('sameLang')], ['en', 'English'], ['fr', 'Français']] })).choice;
+    await ctx.call('set-profile', { aiLanguage: summary.aiLang });
 
     say(t('schoolQ'));
     const school = await yesNo(t('schoolYes'), t('schoolNo'));
     await ctx.call('set-profile', { school });
+    summary.school = school;
     if (school) {
       say(t('moodleQ'));
       if (await yesNo(t('connect'), t('notNow'))) summary.moodle = await connect('login', 'Moodle');
@@ -167,8 +227,6 @@ export function runOnboarding(ctx, el, status) {
       say(t('ttQ'));
       if (await yesNo(t('yes'), t('notNow'))) await timetable();
       await profile();
-    } else {
-      Object.assign(summary, { moodle: null, leo: null, timetable: null, profile: null });
     }
 
     say(t('aiQ'));
@@ -176,15 +234,12 @@ export function runOnboarding(ctx, el, status) {
     const choices = [['nvidia', t('aiNvidia')], ['custom', t('aiCustom')]];
     if (current.strong) choices.push(['keep', t('aiKeep', current.strong.split(' · ').pop())]);
     const pick = (await ask({ choices })).choice;
-    if (pick === 'keep') summary.ai = current.strong.split(' · ').pop();
-    else if (pick === 'custom' || !(await nvidia())) say(t('laterAgent'));
+    if (pick === 'custom' || (pick === 'nvidia' && !(await nvidia()))) say(t('laterAgent'));
+    summary.ai = true;
   }
 
-  // Missing parts show as gray; parts that don't apply (not a De Vinci student) are left out.
   const finish = async () => {
-    for (const k of Object.keys(summary)) if (summary[k] === null) delete summary[k];
-    say(t('thanks'), graph());
-    await ask({ choices: [['go', t('start')]] });
+    await finalScreen();
     await ctx.call('set-setup', { done: true, step: 0 });
     location.href = '/'; // full reload: applies the language and the sidebar entries everywhere
   };
