@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { piModels, piEngineForSpec } from "../src/agent/models.ts";
-import { formatTranscript, parseToolCallsFromText, isAntigravityAvailable, ANTIGRAVITY_MODELS, newText } from "../src/agent/providers/antigravity.ts";
+import { formatTranscript, parseToolCallsFromText, isAntigravityAvailable, ANTIGRAVITY_MODELS, newText, parseAgyModels } from "../src/agent/providers/antigravity.ts";
 import { providerKeyPresent } from "../src/server/keys.ts";
 import { modelCatalog } from "../src/server/model-catalog.ts";
 
@@ -71,7 +71,7 @@ describe("Antigravity Provider (Zero-Key Ambient)", () => {
 		if (!isAntigravityAvailable()) return assert.equal(agyModels.length, 0);
 		assert.ok(agyModels.length > 0, "Expected antigravity models in catalog");
 		assert.ok(agyModels.some((m) => m.id === "gemini-3.8-flash-high"));
-		assert.ok(agyModels.some((m) => m.id === "gemini-4-argon-high"));
+		assert.ok(agyModels.some((m) => m.id === "gemini-3.8-flash-low"));
 	});
 
 	it("adapts model id when reasoning effort changes", () => {
@@ -133,6 +133,18 @@ describe("Antigravity Provider (Zero-Key Ambient)", () => {
 		assert.ok(formatted.includes("# Tools Available"));
 		assert.ok(formatted.includes("- **probe**: Ask a multiple choice diagnostic question"));
 		assert.ok(formatted.includes("<tool_call>"));
+	});
+
+	it("parses tool calls whose JSON holds single-backslash LaTeX", () => {
+		const raw = String.raw`<tool_call>{"name":"submit_findings","arguments":{"statement":"$\|f\|_2^2 = \frac{1}{L}\int_0^L f^2$"}}</tool_call>`;
+		const { toolCalls } = parseToolCallsFromText(raw);
+		assert.equal(toolCalls.length, 1);
+		assert.equal((toolCalls[0]!.arguments as { statement: string }).statement, String.raw`$\|f\|_2^2 = \frac{1}{L}\int_0^L f^2$`);
+	});
+
+	it("parses tab-separated `agy models` output and skips its banner", () => {
+		const out = "Fetching available models...\ngemini-3.8-flash-medium\tGemini 3.8 Flash (Medium)\nclaude-opus-4-6-thinking\tClaude Opus 4.6 (Thinking)\n";
+		assert.deepEqual(parseAgyModels(out).map((m) => [m.id, m.name]), [["gemini-3.8-flash-medium", "Gemini 3.8 Flash (Medium)"], ["claude-opus-4-6-thinking", "Claude Opus 4.6 (Thinking)"]]);
 	});
 
 	it("dedupes agy text: ACTIVE fragments then a DONE that repeats the full text", () => {

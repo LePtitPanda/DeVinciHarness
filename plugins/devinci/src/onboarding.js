@@ -218,12 +218,12 @@ export function runOnboarding(ctx, el, status) {
       if (models.length) break;
       say(t('gmNotFound'));
     }
+    // Newest Gemini at medium effort for teaching and sub-agents, low for vision.
     const gem = models.filter((m) => /^gemini/.test(m.id)).sort(byVersion);
-    const pro = gem.filter((m) => !/flash/.test(m.id));
-    const strong = pro.find((m) => /-high$/.test(m.id)) ?? pro[0] ?? gem[0] ?? models[0];
-    const sub = gem.find((m) => /flash.*-medium$/.test(m.id)) ?? gem.find((m) => /flash/.test(m.id)) ?? strong;
-    const vision = pro.find((m) => m.id === strong.id.replace(/-high$/, '-medium')) ?? strong;
-    say(t('gmSafe'), t('gmModels', strong.name, sub.name, vision.name));
+    const strong = gem.find((m) => /-medium$/.test(m.id)) ?? gem[0] ?? models[0];
+    const sub = strong;
+    const vision = gem.find((m) => m.id === strong.id.replace(/-medium$/, '-low')) ?? strong;
+    say(t('gmSafe'), t('gmLimits'), t('gmModels', strong.name, sub.name, vision.name));
     await setModels({ strong: slot('antigravity', strong.id), cheap: slot('antigravity', sub.id), vision: slot('antigravity', vision.id) });
     return true;
   }

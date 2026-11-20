@@ -18,6 +18,7 @@ import {
 	type TranscriptContext,
 } from "@earendil-works/pi-ai";
 import { getCurrentTools } from "@earendil-works/pi-ai/utils/transcript";
+import { escapeLatexBackslashes } from "../../core/argument-heal.ts";
 
 export const ANTIGRAVITY_MODELS: readonly Model<Api>[] = [
 	{
@@ -60,71 +61,6 @@ export const ANTIGRAVITY_MODELS: readonly Model<Api>[] = [
 		thinkingLevelMap: { off: "low", minimal: "low", low: "low", medium: "medium", high: "high", xhigh: "high", max: "high" },
 	},
 	{
-		id: "gemini-4-argon-high",
-		name: "Gemini 4 Argon (High)",
-		api: "antigravity",
-		provider: "antigravity",
-		baseUrl: "",
-		reasoning: true,
-		input: ["text", "image"],
-		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-		contextWindow: 1048576,
-		maxTokens: 65536,
-		thinkingLevelMap: { off: "low", minimal: "low", low: "low", medium: "medium", high: "high", xhigh: "high", max: "high" },
-	},
-	{
-		id: "gemini-4-argon-medium",
-		name: "Gemini 4 Argon (Medium)",
-		api: "antigravity",
-		provider: "antigravity",
-		baseUrl: "",
-		reasoning: true,
-		input: ["text", "image"],
-		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-		contextWindow: 1048576,
-		maxTokens: 65536,
-		thinkingLevelMap: { off: "low", minimal: "low", low: "low", medium: "medium", high: "high", xhigh: "high", max: "high" },
-	},
-	{
-		id: "claude-sonnet-5-5-high",
-		name: "Claude Sonnet 5.5 (High)",
-		api: "antigravity",
-		provider: "antigravity",
-		baseUrl: "",
-		reasoning: true,
-		input: ["text", "image"],
-		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-		contextWindow: 200000,
-		maxTokens: 8192,
-		thinkingLevelMap: { off: "low", minimal: "low", low: "low", medium: "medium", high: "high", xhigh: "high", max: "high" },
-	},
-	{
-		id: "claude-sonnet-5-5-medium",
-		name: "Claude Sonnet 5.5 (Medium)",
-		api: "antigravity",
-		provider: "antigravity",
-		baseUrl: "",
-		reasoning: true,
-		input: ["text", "image"],
-		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-		contextWindow: 200000,
-		maxTokens: 8192,
-		thinkingLevelMap: { off: "low", minimal: "low", low: "low", medium: "medium", high: "high", xhigh: "high", max: "high" },
-	},
-	{
-		id: "claude-opus-5-5-high",
-		name: "Claude Opus 5.5 (High)",
-		api: "antigravity",
-		provider: "antigravity",
-		baseUrl: "",
-		reasoning: true,
-		input: ["text", "image"],
-		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-		contextWindow: 200000,
-		maxTokens: 8192,
-		thinkingLevelMap: { off: "low", minimal: "low", low: "low", medium: "medium", high: "high", xhigh: "high", max: "high" },
-	},
-	{
 		id: "gpt-oss-120b-medium",
 		name: "GPT-OSS 120B (Medium)",
 		api: "antigravity",
@@ -161,6 +97,11 @@ function messageContentToText(content: unknown): string {
 	return "";
 }
 
+/** Models write LaTeX (`\frac`, `\|`) with single backslashes inside tool-call JSON. */
+function parseLenient(raw: string): any {
+	try { return JSON.parse(raw); } catch { return JSON.parse(escapeLatexBackslashes(raw)); }
+}
+
 export function parseToolCallsFromText(text: string): {
 	prose: string;
 	toolCalls: Array<{ name: string; arguments: JsonObject }>;
@@ -176,7 +117,7 @@ export function parseToolCallsFromText(text: string): {
 		lastIndex = match.index + match[0].length;
 		const jsonStr = (match[1] ?? "").trim();
 		try {
-			const parsed = JSON.parse(jsonStr);
+			const parsed = parseLenient(jsonStr);
 			if (parsed && typeof parsed.name === "string") {
 				toolCalls.push({
 					name: parsed.name,
@@ -194,7 +135,7 @@ export function parseToolCallsFromText(text: string): {
 		const unclosed = text.slice(startIdx + "<tool_call>".length).trim();
 		const cleaned = unclosed.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
 		try {
-			const parsed = JSON.parse(cleaned);
+			const parsed = parseLenient(cleaned);
 			if (parsed && typeof parsed.name === "string") {
 				toolCalls.push({
 					name: parsed.name,
@@ -451,7 +392,7 @@ function streamAntigravity(
 export function parseAgyModels(out: string): Model<Api>[] {
 	const template = ANTIGRAVITY_MODELS[0]!;
 	return out.split(/\r?\n/).flatMap((line) => {
-		const m = /^([\w.-]+)\s{2,}(\S.*)$/.exec(line.trim());
+		const m = /^([\w.-]+)(?:\t+|\s{2,})(\S.*)$/.exec(line.trim()); // agy separates columns with a tab
 		if (!m) return [];
 		const known = ANTIGRAVITY_MODELS.find((x) => x.id === m[1]);
 		return [known ?? { ...template, id: m[1]!, name: m[2]!.trim(), input: /gemini|claude/i.test(m[1]!) ? ["text", "image"] : ["text"] }];

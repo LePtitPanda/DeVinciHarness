@@ -27,6 +27,7 @@ import {
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import { PathText } from "@/components/file-path-chip";
 import { Reasoning, ReasoningContent, ReasoningTrigger } from "@/components/ai-elements/reasoning";
+import { absorbedNarration, isNarration, narrationHost } from "@/components/narration";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { BrailleSpinner } from "@/components/braille-spinner";
 import { ToolPartRenderer } from "@/components/plugin-renderers";
@@ -1910,6 +1911,15 @@ export function Chat({
 												}
 												switch (part.type) {
 													case "text": {
+														if (isNarration(m.parts, pi)) {
+															if (narrationHost(m.parts, pi) >= 0) return null; // shown inside that thinking block
+															return (
+																<Reasoning key={part.id || pi} isStreaming={false} className="mb-2">
+																	<ReasoningTrigger />
+																	<ReasoningContent>{String(part.text ?? "")}</ReasoningContent>
+																</Reasoning>
+															);
+														}
 														const sourceId = textPartMessageId(part.id);
 														const anchor = sourceId && sourceTextParts.get(sourceId) === part.id ? messageAnchorId(sourceId) : undefined;
 														return (
@@ -1922,7 +1932,7 @@ export function Chat({
 														return (
 															<Reasoning key={pi} isStreaming={status === "streaming" && isLastPart} className="mb-2">
 																<ReasoningTrigger />
-																<ReasoningContent>{part.text ?? ""}</ReasoningContent>
+																<ReasoningContent>{[part.text ?? "", ...absorbedNarration(m.parts, pi)].filter((s) => s.trim()).join("\n\n")}</ReasoningContent>
 															</Reasoning>
 														);
 													case "step-start":

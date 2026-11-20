@@ -17,7 +17,7 @@ const LANGUAGE = { en: 'Teach and write in English.', fr: 'Enseigne et écris en
 const INSTRUCTIONS = `The learner is an ESILV (De Vinci, Paris) engineering student. School tools are available:
 - school_schedule: their real timetable and exam dates (from the school calendar).
 - school_find_material: FIRST step when you need course material or past exams for a topic. A cheaper model searches Moodle and LeoData and returns the matching files; you then read those exact files. Prefer it over browsing yourself.
-- school_courses, school_course_contents, school_read_file: their Moodle (De Vinci Learning) courses and the actual course files. Teach from the real course material when it is relevant; say which file and page you used.
+- school_courses, school_course_contents, school_read_file: their Moodle (De Vinci Learning) courses and the actual course files. Teach from the real course material when it is relevant; say which file and page you used, naming the file in plain text (never as a link: file links cannot open in the chat).
 - school_deadlines: upcoming Moodle assignments and quizzes.
 - school_past_exams_browse, school_past_exams_read: LeoData, the students' archive of previous years' exams and documents. Use past exams for realistic practice; say which year/file a question comes from.
 - school_announcements: course announcements. When the learner asks what an exam covers, read the announcements and quote the exact announcement (course, date, words) you rely on. Present the exam scope as your reading of that text, not as fact; if announcements are vague, missing or contradictory, say so instead of guessing.
