@@ -2,7 +2,8 @@
  * reply text ("I'll read the course first…") right before a tool call, where
  * Claude/GPT keep it in their thinking. Such text is shown inside the
  * collapsed thinking block instead. Text before a question tool still shows. */
-const LEARNER_TOOLS = new Set(["tool-quiz", "tool-probe", "tool-ask_user_question", "tool-explain", "tool-recall"]);
+// Text before these stays visible: questions, and the plan the teacher lays out.
+const LEARNER_TOOLS = new Set(["tool-quiz", "tool-probe", "tool-ask_user_question", "tool-explain", "tool-recall", "tool-plan_init"]);
 type PartLike = { type: string; text?: string };
 export function isNarration(parts: readonly PartLike[], i: number): boolean {
 	if (parts[i]?.type !== "text") return false;

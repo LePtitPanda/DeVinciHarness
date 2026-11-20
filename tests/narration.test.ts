@@ -20,6 +20,10 @@ describe("narration folding (fork)", () => {
 	it("folds text before a non-question tool, keeps text before a probe and final text", () => {
 		assert.deepEqual(parts.map((_, i) => isNarration(parts, i)), [false, false, true, false, false, true, false, false, false, false, false, false]);
 	});
+	it("keeps the teacher's plan text visible", () => {
+		const plan = [{ type: "step-start" }, { type: "reasoning", text: "x" }, { type: "text", text: "We'll start with uniform convergence." }, { type: "tool-plan_init" }];
+		assert.equal(isNarration(plan, 2), false);
+	});
 	it("hands narration to the step's thinking block when there is one", () => {
 		assert.equal(narrationHost(parts, 2), 1);
 		assert.equal(narrationHost(parts, 5), -1);

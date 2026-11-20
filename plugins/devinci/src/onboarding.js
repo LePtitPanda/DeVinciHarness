@@ -131,7 +131,14 @@ export function runOnboarding(ctx, el, status) {
   // levels they support); a missing pick falls back to the provider's first model.
   async function setModels(picks) {
     try {
-      const { models: catalog = [] } = await api('/api/models');
+      // A fresh sign-in can take a few seconds to show its models.
+      const wanted = Object.values(picks)[0].model.provider;
+      let catalog = [];
+      for (let i = 0; i < 5; i++) {
+        catalog = (await api('/api/models')).models || [];
+        if (catalog.some((m) => m.provider === wanted)) break;
+        await new Promise((r) => setTimeout(r, 2000));
+      }
       const out = {};
       for (const [name, pick] of Object.entries(picks)) {
         const ofProvider = catalog.filter((m) => m.provider === pick.model.provider);
@@ -167,26 +174,50 @@ export function runOnboarding(ctx, el, status) {
     return el('div', { class: 'dv-ob-cmd' }, el('code', {}, cmd), btn);
   };
 
+  // ChatGPT / Codex goes through the fork's native "OpenAI Codex" subscription
+  // connection (not the legacy ChatGPT bridge, which later runs fail on).
   async function chatgpt() {
-    const bridge = window.lh?.chatgpt;
+    const bridge = window.lh?.subscriptions, ID = 'openai-codex';
     if (!bridge) { say(t('desktopOnly')); return false; }
+    const status = async () => (await bridge.status()).find((s) => s.providerId === ID);
     say(t('gptNotice'));
     if (!(await yesNo(t('gptSignIn'), t('useOther')))) return false;
     for (;;) {
-      try { await bridge.login(); } catch (e) { say(t('signInFailed', e.message)); }
+      if ((await status())?.connected) break;
+      let failed = false;
+      // login() resolves only when sign-in completes; true = sub-agents may use the plan.
+      Promise.resolve(bridge.login(ID, true)).catch(() => { failed = true; });
       say(t('waitBrowser'));
-      const ok = await waitUntil(async () => {
-        const st = await bridge.status();
-        return st.pending ? undefined : st.accounts.some((a) => a.connected);
-      });
-      if (ok === 'cancel') { await Promise.resolve(bridge.cancel()).catch(() => {}); return false; }
-      if (ok) break;
+      const opened = new Set(), handled = new Set();
+      let result;
+      for (;;) {
+        result = await waitUntil(async () => {
+          const st = await status();
+          if (st?.connected && !st.pending) return true;
+          const it = st?.interaction;
+          if (it?.browser && !opened.has(it.browser.id)) { opened.add(it.browser.id); await bridge.open(ID, it.attemptId, it.browser.id); }
+          if (it?.userCode && !opened.has(it.userCode)) { opened.add(it.userCode); say(t('codexCode', it.userCode)); }
+          if (it?.prompt && !handled.has(it.prompt.id)) { handled.add(it.prompt.id); return { attemptId: it.attemptId, prompt: it.prompt }; }
+          if (failed || (st && !st.pending && st.error)) return false;
+          return undefined;
+        }, 300000);
+        if (!result || typeof result !== 'object') break;
+        // The provider asked something (e.g. paste a code): answer it here in the chat.
+        const { prompt } = result;
+        say(prompt.message);
+        const a = await ask(prompt.type === 'select'
+          ? { choices: (prompt.options || []).map((o) => [o.id, o.label]) }
+          : { input: { placeholder: prompt.placeholder || '', secret: prompt.type === 'secret' } });
+        await Promise.resolve(bridge.respond(ID, result.attemptId, prompt.id, a.text ?? a.choice)).catch(() => {});
+      }
+      if (result === 'cancel') { await Promise.resolve(bridge.cancel(ID)).catch(() => {}); return false; }
+      if (result) break;
       say(t('notSignedIn'));
       if (!(await yesNo(t('retry'), t('useOther')))) return false;
     }
-    await Promise.resolve(bridge.consent(true)).catch(() => {}); // the notice said sub-agents use the plan too
     say(t('gptDone'), t('gptModels'));
-    await setModels({ strong: slot('chatgpt', 'gpt-6.1-sol', 'high'), cheap: slot('chatgpt', 'gpt-6-luna', 'medium'), vision: slot('chatgpt', 'gpt-6.1-sol', 'medium') });
+    const P = 'openai-codex-subscription';
+    await setModels({ strong: slot(P, 'gpt-6.1-sol', 'high'), cheap: slot(P, 'gpt-6-luna', 'medium'), vision: slot(P, 'gpt-6.1-sol', 'medium') });
     return true;
   }
 
@@ -210,6 +241,8 @@ export function runOnboarding(ctx, el, status) {
   }
 
   async function gemini() {
+    say(t('gmLimits'));
+    if (!(await yesNo(t('gmAnyway'), t('useOther')))) return false;
     say(t('gmIntro'), el('ol', { class: 'dv-ob-steps' }, el('li', {}, t('gm1'), command(AGY_INSTALL)), el('li', {}, t('gm2')), el('li', {}, t('gm3'))));
     let models = [];
     for (;;) {
@@ -223,7 +256,7 @@ export function runOnboarding(ctx, el, status) {
     const strong = gem.find((m) => /-medium$/.test(m.id)) ?? gem[0] ?? models[0];
     const sub = strong;
     const vision = gem.find((m) => m.id === strong.id.replace(/-medium$/, '-low')) ?? strong;
-    say(t('gmSafe'), t('gmLimits'), t('gmModels', strong.name, sub.name, vision.name));
+    say(t('gmSafe'), t('gmModels', strong.name, sub.name, vision.name));
     await setModels({ strong: slot('antigravity', strong.id), cheap: slot('antigravity', sub.id), vision: slot('antigravity', vision.id) });
     return true;
   }
