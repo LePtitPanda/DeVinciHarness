@@ -84,6 +84,8 @@ export interface CanvasNode {
 	x: number;
 	y: number;
 	label: string;
+	/** Only seen in imported files, never in a chat: drawn as a hollow ring. */
+	imported?: boolean;
 }
 
 /** One directed edge of the DERIVED view (chains-primary, 2026-09-30):
@@ -653,6 +655,7 @@ export class GraphCanvasRenderer {
 	private geoVersion = 0; // bump = geometry inputs changed
 	private builtVersion = -1; // version the cache was built at
 	private nodesPath: Path2D | null = null;
+	private importedPath: Path2D | null = null;
 	private shaftsPath: Path2D = new Path2D();
 	private headsPath: Path2D = new Path2D();
 	private regionCanvas: HTMLCanvasElement | null = null;
@@ -1255,12 +1258,17 @@ export class GraphCanvasRenderer {
 		// Node discs: one Path2D, one fill() per frame. Implication nodes
 		// are pure geometry — never a disc, never a label, never picked.
 		const nodesPath = new Path2D();
+		const importedPath = new Path2D();
+		const ringR = nodeR * 0.82;
 		for (const n of data.nodes) {
 			if (!isVisible(n.id) || isImpNodeId(n.id)) continue;
-			nodesPath.moveTo(n.x + nodeR, n.y);
-			nodesPath.arc(n.x, n.y, nodeR, 0, Math.PI * 2);
+			const path = n.imported ? importedPath : nodesPath;
+			const r = n.imported ? ringR : nodeR;
+			path.moveTo(n.x + r, n.y);
+			path.arc(n.x, n.y, r, 0, Math.PI * 2);
 		}
 		this.nodesPath = nodesPath;
+		this.importedPath = importedPath;
 
 		// Edge shafts + arrowheads (rendering arc, owner 2026-09-30): all
 		// arrows are PLAIN single shafts — the old double-shaft glyph is
@@ -1680,6 +1688,14 @@ export class GraphCanvasRenderer {
 		// 4. Nodes: one cached Path2D, one fill.
 		ctx.fillStyle = data.colors.node;
 		ctx.fill(this.nodesPath);
+		// Imported-only nodes: a soft hollow ring — material he has, not yet studied.
+		if (this.importedPath) {
+			ctx.fillStyle = rgbaFromHex(data.colors.node, 0.18);
+			ctx.fill(this.importedPath);
+			ctx.strokeStyle = data.colors.node;
+			ctx.lineWidth = nodeR * 0.36;
+			ctx.stroke(this.importedPath);
+		}
 
 		// 6. Node labels — one global gate, faded together. World-scaled
 		// with the graph (they grow as you zoom in, Obsidian-style).

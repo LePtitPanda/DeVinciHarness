@@ -36,6 +36,7 @@ import { effectiveSettings, stores } from "./stores.ts";
 import { getPluginAgentContributions, getPluginHost } from "./plugins.ts";
 import { preparePluginQuestionSubmission, reconcilePluginQuestionCompatibility, type QuestionTypeResolver } from "./plugin-questions.ts";
 import { searchAvailable, searchProvider } from "./search.ts";
+import { transcribeImages } from "./image-transcribe.ts";
 import { prepareSubmissionImages, prepareSubmissionImageChannels, prepareProblemSubmissionImageChannels, submissionImagePolicyKey } from "./submission-images.ts";
 import { preparePluginProblemSubmission, requirePluginProblemTarget, type ProblemTypeResolver } from "./plugin-problems.ts";
 import { providerKeyPresent } from "./keys.ts";
@@ -344,9 +345,18 @@ export async function handleChatInput(
 	const capturedConversation = JSON.stringify(conversation);
 	try {
 		switch (input.type) {
-			case "text": case "thinking":
-				input = { ...input, images: await prepareSubmissionImages(input.images, conversationEngine) };
+			case "text": case "thinking": {
+				const vision = input.images?.length && !conversationEngine.model.input.includes("image") ? resolveEngine("pdfReader") : undefined;
+				if (vision?.model.input.includes("image")) {
+					// Text-only conversation model: the vision slot reads the photos for it.
+					const prepared = await prepareSubmissionImages(input.images, vision);
+					let transcript: string;
+					try { transcript = prepared ? await transcribeImages(prepared, vision) : ""; }
+					catch { throw new ChatInputError("The vision model could not read the attached images. Your input has been kept."); }
+					input = { ...input, images: undefined, text: `${input.text}\n\n[Attached images, transcribed by the vision model]\n${transcript}`.trim() };
+				} else input = { ...input, images: await prepareSubmissionImages(input.images, conversationEngine) };
 				break;
+			}
 			case "answer":
 				input = { ...input, answer: { ...input.answer, images: await prepareSubmissionImageChannels(input.answer.images, conversationEngine) } };
 				break;

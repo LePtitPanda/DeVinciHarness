@@ -103,6 +103,16 @@ export type NodeDeleteOutcome =
  *     mergeFindings ignores linkTo ids that no longer exist (the
  *     existingIds guard) — no dangling edges, no resurrection.
  */
+/** Wipe every proposition and link. Library files and chat coverage stay,
+ *  so nothing re-extracts on its own; new lessons start a fresh map. */
+export function deleteWholeGraph(): { ok: true; graphRevision: number } | { ok: false; status: number; code: string; error: string } {
+	if (extractionStatuses().length > 0) {
+		return { ok: false, status: 409, code: "extraction_running", error: "An extraction is running — try again when it finishes" };
+	}
+	stores.graphStore.rewriteLedgers({ nodes: [], chains: [] });
+	return { ok: true, graphRevision: graphRevision() };
+}
+
 export function deleteGraphNode(nodeId: string): NodeDeleteOutcome {
 	if (extractionStatuses().length > 0) {
 		return {

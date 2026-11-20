@@ -2,7 +2,7 @@
 
 import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type { ViewReaderRef } from "./session-view-readers";
-import { ChevronRightIcon } from "lucide-react";
+import { ChevronRightIcon, ImageIcon, XIcon } from "lucide-react";
 import { ToolContentResponse } from "@/components/ai-elements/message";
 import { Button } from "@/components/ui/button";
 import { joinDictation, useDictationTarget } from "@/components/dictation";
@@ -10,7 +10,9 @@ import { useEnterSubmits } from "@/components/enter-submits";
 import { useOptionalInteractionLayers } from "./interaction-layers";
 import { isInteractionScopeEligible } from "./plugin-input-focus";
 import { PathInput } from "@/components/path-input";
-import type { PrepareThinkingSubmission } from "./plugin-submission-adapters";
+import type { PrepareThinkingSubmission, SubmittedImage } from "./plugin-submission-adapters";
+
+const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 import { cn } from "@/lib/utils";
 
 /**
@@ -69,6 +71,21 @@ export function PracticeDock({ viewReader, problemCallId, input, expanded, onExp
 	const controller = useOptionalInteractionLayers();
 	const rootRef = useRef<HTMLElement>(null);
 	const [nativeThinking, setNativeThinking] = useState("");
+	// Photos of paper work or diagrams, sent with the thinking (native editor only).
+	const [images, setImages] = useState<SubmittedImage[]>([]);
+	const imagesRef = useRef(images); imagesRef.current = images;
+	const fileRef = useRef<HTMLInputElement>(null);
+	const addFiles = (files: Iterable<File>) => {
+		for (const file of files) {
+			if (!IMAGE_TYPES.has(file.type)) continue;
+			const reader = new FileReader();
+			reader.onload = () => {
+				const data = String(reader.result).split(",")[1];
+				if (data) setImages(list => list.length >= 6 ? list : [...list, { type: "image", data, mimeType: file.type }]);
+			};
+			reader.readAsDataURL(file);
+		}
+	};
 	const custom = useRef(customInput); custom.current = customInput;
 	const thinking = customInput ? customInput.thinking : nativeThinking;
 	const setThinking = (value: string) => { if (custom.current) custom.current.onThinkingChange(value); else setNativeThinking(value); };
@@ -101,11 +118,13 @@ export function PracticeDock({ viewReader, problemCallId, input, expanded, onExp
 		if (compactionRunning || preparing) return;
 		const prepare = customInput?.prepare ?? onPrepareSubmission;
 		if (prepare) {
-			if (customInput ? !customInput.ready : (!thinkingRef.current.trim() && !hasPendingInput)) return;
+			if (customInput ? !customInput.ready : (!thinkingRef.current.trim() && !imagesRef.current.length && !hasPendingInput)) return;
 			let capturedRevision = editRevision.current;
+			let sentImages: SubmittedImage[] = [];
 			prepare(() => { capturedRevision = editRevision.current; return customInput ? thinkingRef.current : thinkingRef.current.trim(); }, captured => {
+				setImages(list => list.filter(image => !sentImages.includes(image)));
 				if (editRevision.current === capturedRevision && (customInput ? thinkingRef.current : thinkingRef.current.trim()) === captured) { thinkingRef.current = ""; setThinking(""); }
-			});
+			}, customInput ? undefined : () => (sentImages = imagesRef.current));
 			return;
 		}
 		const text = thinkingRef.current.trim();
@@ -159,12 +178,34 @@ export function PracticeDock({ viewReader, problemCallId, input, expanded, onExp
 			    Shift+Enter makes a newline — less to decide about. */}
 			<div
 				data-testid="practice-thinking-field"
+				onDragOver={customInput ? undefined : (e) => { if (e.dataTransfer.types.includes("Files")) e.preventDefault(); }}
+				onDrop={customInput ? undefined : (e) => { if (!e.dataTransfer.files.length) return; e.preventDefault(); addFiles(e.dataTransfer.files); }}
 				className="m-1.5 rounded-[10px] border border-border/70 bg-background/60 transition-colors focus-within:border-primary/50"
 			>
 				<div className="px-2.5 pt-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
 					YOUR THINKING
 				</div>
+				{!customInput && images.length > 0 && (
+					<div data-testid="practice-images" className="flex flex-wrap gap-2 px-2.5 pt-2">
+						{images.map((image, i) => (
+							<div key={i} className="group relative">
+								{/* eslint-disable-next-line @next/next/no-img-element */}
+								<img src={`data:${image.mimeType};base64,${image.data}`} alt={`Attached image ${i + 1}`} className="size-16 rounded-md border border-border/70 object-cover" />
+								<button type="button" aria-label="Remove image" onClick={() => setImages(list => list.filter((_, j) => j !== i))}
+									className="absolute -top-1.5 -right-1.5 grid size-5 place-items-center rounded-full bg-background text-muted-foreground shadow ring-1 ring-border hover:text-foreground">
+									<XIcon className="size-3" />
+								</button>
+							</div>
+						))}
+					</div>
+				)}
 				<PathInput
+					onPaste={customInput ? undefined : (e) => {
+						const files = [...e.clipboardData.files].filter(file => IMAGE_TYPES.has(file.type));
+						if (!files.length) return;
+						e.preventDefault();
+						addFiles(files);
+					}}
 					value={thinking}
 					onValueChange={(value) => {
 						thinkingRef.current = value; editRevision.current++;
@@ -198,13 +239,23 @@ export function PracticeDock({ viewReader, problemCallId, input, expanded, onExp
 				    one p-1 row. Corner radii concentric: shell 16 − m-1.5 (6) =
 				    field 10 − p-1 (4) = button 6. */}
 				<div className="flex items-center justify-between gap-2 p-1">
-					<span aria-hidden className="pl-1.5 text-xs text-muted-foreground">
-						{compactionRunning ? "compacting session…" : "↵ submits · ⇧↵ newline"}
+					<span className="flex items-center gap-1 pl-1.5 text-xs text-muted-foreground">
+						{!customInput && (
+							<>
+								<input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden
+									onChange={(e) => { addFiles(e.target.files ?? []); e.target.value = ""; }} />
+								<button type="button" data-testid="practice-attach" title="Add a photo of your work (or paste one)"
+									onClick={() => fileRef.current?.click()} className="grid size-7 place-items-center rounded-md hover:bg-muted hover:text-foreground">
+									<ImageIcon className="size-4" />
+								</button>
+							</>
+						)}
+						<span aria-hidden>{compactionRunning ? "compacting session…" : "↵ submits · ⇧↵ newline"}</span>
 					</span>
 					<Button
 						type="button"
 						data-testid="practice-send"
-						disabled={(customInput ? !customInput.ready : (!thinking.trim() && !hasPendingInput)) || compactionRunning || preparing}
+						disabled={(customInput ? !customInput.ready : (!thinking.trim() && !images.length && !hasPendingInput)) || compactionRunning || preparing}
 						onClick={() => submit()}
 						className="ml-auto h-9 rounded-[6px] px-3.5 text-sm font-medium"
 					>

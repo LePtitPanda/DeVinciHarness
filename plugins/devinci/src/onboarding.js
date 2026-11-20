@@ -16,8 +16,8 @@ export function runOnboarding(ctx, el, status) {
   const t = (key, ...args) => { const v = OB[lang][key] ?? OB.en[key]; return typeof v === 'function' ? v(...args) : v; };
   const log = el('div', { class: 'dv-ob-log', role: 'log', 'aria-live': 'polite' });
   const dock = el('div', { class: 'dv-ob-dock' });
-  const overlay = el('div', { class: 'dv-ob', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'DeVinciHarness setup' },
-    el('div', { class: 'dv-ob-col' }, log, dock));
+  const col = el('div', { class: 'dv-ob-col' }, log, dock);
+  const overlay = el('div', { class: 'dv-ob', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'DeVinciHarness setup' }, col);
   document.body.append(overlay);
 
   const scroll = () => requestAnimationFrame(() => { log.scrollTop = log.scrollHeight; });
@@ -339,7 +339,22 @@ export function runOnboarding(ctx, el, status) {
     return new Promise((resolve) => ctx.ui.mountButton(start, { label: t('start'), onClick: resolve }, { signal: ctx.signal }));
   }
 
+  // First screen of a fresh setup: drifting math glyphs behind the name and one button.
+  function welcome() {
+    const glyphs = '∫∑∂∇λπθΔ√∞≤∈ℝ∀∃→⊂αβμσφΩ';
+    const field = el('div', { class: 'dv-ob-glyphs', 'aria-hidden': 'true' });
+    for (let i = 0; i < 48; i++) {
+      const r = (a, b) => (a + Math.random() * (b - a)).toFixed(2);
+      field.append(el('span', { style: `left:${r(0, 98)}%;top:${r(0, 96)}%;font-size:${r(0.9, 2.2)}rem;animation-duration:${r(9, 20)}s;animation-delay:-${r(0, 20)}s` }, glyphs[i % glyphs.length]));
+    }
+    const title = el('h1', { class: 'dv-ob-title' }, [...'DeVinciHarness'].map((ch, i) => el('span', { style: `animation-delay:${120 + i * 45}ms` }, ch)));
+    const start = el('div', { class: 'dv-ob-go' });
+    overlay.replaceChildren(el('div', { class: 'dv-ob-welcome' }, field, el('div', { class: 'dv-ob-hero' }, title, start)));
+    return new Promise((resolve) => ctx.ui.mountButton(start, { label: 'Start setup · Commencer', onClick: () => { overlay.replaceChildren(col); resolve(); } }, { signal: ctx.signal }));
+  }
+
   async function flow() {
+    if (!status.setupStep) await welcome();
     say(OB.en.hello, OB.fr.hello);
     lang = (await ask({ choices: [['en', 'English'], ['fr', 'Français']] })).choice;
     await ctx.call('set-profile', { language: lang });
@@ -363,6 +378,7 @@ export function runOnboarding(ctx, el, status) {
       await profile();
     }
 
+    say(t('aiTerms'));
     say(t('aiQ'));
     const current = await ctx.call('models').catch(() => ({}));
     const choices = [['nvidia', t('aiNvidia')], ['chatgpt', t('aiChatgpt')], ['claude', t('aiClaude')], ['gemini', t('aiGemini')], ['custom', t('aiCustom')]];

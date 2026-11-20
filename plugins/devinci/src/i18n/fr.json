@@ -753,5 +753,13 @@
  "Electron": "Electron",
  "AI language": "Langue de l’IA",
  "Same as language": "Comme la langue",
- "The whole app. Changing it reloads the window.": "Toute l’application. Changer recharge la fenêtre."
+ "The whole app. Changing it reloads the window.": "Toute l’application. Changer recharge la fenêtre.",
+ "Studied": "Étudié",
+ "From your files": "Tiré de tes fichiers",
+ "Delete graph": "Supprimer le graphe",
+ "Click again to delete the whole graph": "Clique encore pour supprimer tout le graphe",
+ "Removes every topic and link. Your files and chats stay.": "Supprime tous les sujets et liens. Tes fichiers et sessions restent.",
+ "Could not delete the graph": "Impossible de supprimer le graphe",
+ "Add a photo of your work (or paste one)": "Ajoute une photo de ton travail (ou colle-la)",
+ "Remove image": "Retirer l’image"
 }

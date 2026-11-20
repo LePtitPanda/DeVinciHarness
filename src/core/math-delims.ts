@@ -34,12 +34,24 @@ function replaceEscapedDollars(content: string): string {
 	return out;
 }
 
+/** A multi-line `$$…$$` opened at a line start only renders when both fences
+ * sit alone on their lines: text on the opening line is dropped, and a closer
+ * with text before or after it never closes. Put both fences on their own
+ * lines (text after the closer moves to the next line). */
+function fenceDisplayMath(raw: string, atLineStart: boolean): string {
+	const text = atLineStart ? "\n" + raw : raw;
+	const out = text.replace(/(?<=\n)\$\$([^$]*\n[^$]*?)\$\$[ \t]*([^\n]*)/g,
+		(_whole, body: string, rest: string) => "$$\n" + body.trim() + "\n$$" + (rest ? "\n" + rest : ""));
+	return atLineStart ? out.slice(1) : out;
+}
+
 /** Read old \(...\)/\[...\] syntax without touching literal content or
  * reparsing native math as Markdown. Dollar authoring remains native. */
 export function transformMathDelimiters(markdown: string): string {
 	let offset = 0;
 	return readContentSpans(markdown).map(span => {
 		const start = offset; offset += span.raw.length;
+		if (span.kind === "prose") return fenceDisplayMath(span.raw, start === 0 || markdown[start - 1] === "\n");
 		if (span.kind !== "math") return span.raw;
 		if (span.open === "$") return "$" + replaceEscapedDollars(span.body) + span.close;
 		if (span.open !== "\\(" && span.open !== "\\[") return span.raw;

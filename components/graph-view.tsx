@@ -136,6 +136,39 @@ type RenderSettings = GraphRenderSettings;
  * query is empty or matches its name or statement (case-insensitive).
  * Exported for tests; the visibility feed just consumes its verdict.
  */
+/** True when a node only came from imported files — no chat ever covered it. */
+export function isImportedOnly(snapshot: Pick<GraphSnapshot, "nodeSessions" | "sessions" | "fileSources">, nodeId: string): boolean {
+	const ids = snapshot.nodeSessions[nodeId] ?? [];
+	return ids.some((id) => snapshot.fileSources[id] !== undefined) && !ids.some((id) => snapshot.sessions[id] !== undefined);
+}
+
+/** Two-click wipe of the whole map; library files stay. */
+function DeleteGraphButton() {
+	const [armed, setArmed] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+	return (
+		<div className="mt-3 border-t border-border/60 pt-3">
+			<button
+				type="button"
+				data-testid="delete-graph"
+				className={`w-full rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${armed ? "bg-destructive text-white hover:bg-destructive/90" : "text-destructive hover:bg-destructive/10"}`}
+				onClick={async () => {
+					if (!armed) { setArmed(true); setError(null); return; }
+					setArmed(false);
+					const res = await fetch("/api/graph", { method: "DELETE" });
+					const body = (await res.json().catch(() => ({}))) as { graphRevision?: number; error?: string };
+					if (!res.ok) { setError(body.error ?? "Could not delete the graph"); return; }
+					window.dispatchEvent(new CustomEvent("lh:graph-revision", { detail: { graphRevision: body.graphRevision } }));
+				}}
+				onBlur={() => setArmed(false)}
+			>
+				{armed ? "Click again to delete the whole graph" : "Delete graph"}
+			</button>
+			<p className="mt-1 text-[11px] text-muted-foreground">{error ?? "Removes every topic and link. Your files and chats stay."}</p>
+		</div>
+	);
+}
+
 export function isNodeVisible(node: Pick<GraphNode, "name" | "statement">, query: string): boolean {
 	const q = query.trim().toLowerCase();
 	if (!q) return true;
@@ -790,6 +823,7 @@ function GraphSettingsControl({
 							/>
 						</div>
 					</div>
+					<DeleteGraphButton />
 				</div>
 			)}
 		</div>
@@ -1410,6 +1444,7 @@ export function GraphView({
 				x: positions.get(n.id)?.x ?? 0,
 				y: positions.get(n.id)?.y ?? 0,
 				label: n.name,
+				imported: isImportedOnly(snapshot, n.id),
 			})),
 			edges: snapshot.edges.map((e) => ({ from: e.from, to: e.to })),
 			logicalEdges: snapshot.logicalEdges.map((e) => ({ from: e.from, to: e.to })),
@@ -1486,6 +1521,12 @@ export function GraphView({
 					{/* THE single canvas: every layer (hulls, edges, nodes, both
 					    label systems, hover) draws into it, once per frame. */}
 					<canvas ref={canvasRef} className="block h-full w-full touch-none" />
+					{snapshot?.nodes.some((n) => isImportedOnly(snapshot, n.id)) && (
+						<div data-testid="graph-legend" className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-3 rounded-full bg-background/70 px-3 py-1 text-[11px] text-muted-foreground backdrop-blur-sm">
+							<span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-foreground/70" />Studied</span>
+							<span className="flex items-center gap-1.5"><span className="size-2 rounded-full border-[1.5px] border-foreground/70 bg-foreground/10" />From your files</span>
+						</div>
+					)}
 					{/* The context menu's anchor: a zero-size point at the
 					    right-click position (canvas-relative == container-relative,
 					    the canvas fills this div). */}

@@ -47,9 +47,10 @@ export function proberGraphTools(ctx: GraphToolContext): Record<string, AgentToo
 			name: "list_sessions",
 			label: "list_sessions",
 			description:
-				"List the sessions of the learner's persistent knowledge graph — every chat or imported-notes file that ever contributed a proposition, most recent first. The map is organized into birth-session clusters (propositions grouped by the session they were first learned in), and session names are those clusters' labels. " +
+				"List the sessions of the learner's persistent knowledge graph — every chat or imported-notes file that ever contributed a proposition, most recent first. The map is organized into birth-session clusters (propositions grouped by the session they first appeared in), and session names are those clusters' labels. " +
 				"Each line: the session's name, kind (chat/file), how many propositions were born in it, its dates, and its id — use that id with list_propositions. " +
-				"Reading this first shows what he has already covered and when, before you probe anything.",
+				"Reading this first shows what he has already covered and when, before you probe anything. " +
+				"A file session is course material he imported, not proof he learned it; only chat sessions show what he studied.",
 			parameters: listSessionsInput,
 			execute: serverExecute("list_sessions", listSessionsInput, async (): Promise<string> => {
 				const sessions = graphSessionIndex(deps);
@@ -177,7 +178,8 @@ export function prepareAuditorReview(ctx: GraphToolContext, propositions: readon
 			label: "list_sessions",
 			description:
 				"List the knowledge graph's birth sessions — every chat or imported-notes file that ever contributed a proposition. " +
-				"Each line: name, kind, proposition count, id. Use the id with list_propositions to see what a session covered.",
+				"Each line: name, kind, proposition count, id. Use the id with list_propositions to see what a session covered. " +
+				"A file session is course material he imported, not proof he learned it; only chat sessions show what he studied.",
 			parameters: Type.Object({}),
 			execute: serverExecute("list_sessions", Type.Object({}), async (): Promise<string> => {
 				const sessions = graphSessionIndex(deps);
