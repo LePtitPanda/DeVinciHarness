@@ -275,8 +275,8 @@ export function agyPath(): string | null {
 	// A miss is rechecked soon: the learner may be installing agy right now.
 	if (agyCache && Date.now() - agyCache.at < (agyCache.path ? AGY_CACHE_MS : 3000)) return agyCache.path;
 	let found: string | null = null;
-	const local = process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, "agy", "bin", "agy.exe") : "";
-	if (process.platform === "win32" && local && existsSync(local)) found = local;
+	const local = process.env.LOCALAPPDATA ? path.join(/* turbopackIgnore: true */ process.env.LOCALAPPDATA, "agy", "bin", "agy.exe") : "";
+	if (process.platform === "win32" && local && existsSync(/* turbopackIgnore: true */ local)) found = local;
 	else {
 		try {
 			const out = execSync(process.platform === "win32" ? "where agy" : "command -v agy", { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true }).trim();
@@ -345,9 +345,9 @@ function streamAntigravity(
 	const effort = streamOptions?.reasoning;
 	if (effort && !/-(low|medium|high|xhigh|max)$/.test(modelId)) args.push("--effort", effort === "minimal" ? "low" : effort);
 
-	const workDir = mkdtempSync(path.join(os.tmpdir(), "devinci-agy-"));
-	const cleanup = () => { try { rmSync(workDir, { recursive: true, force: true }); } catch { /* best effort */ } };
-	const child = spawn(bin, args, {
+	const workDir = mkdtempSync(path.join(/* turbopackIgnore: true */ os.tmpdir(), "devinci-agy-"));
+	const cleanup = () => { try { rmSync(/* turbopackIgnore: true */ workDir, { recursive: true, force: true }); } catch { /* best effort */ } };
+	const child = spawn(/* turbopackIgnore: true */ bin, args, {
 		cwd: workDir,
 		stdio: ["pipe", "pipe", "pipe"],
 		env: { ...process.env },
@@ -469,7 +469,7 @@ function liveAgyModels(): Model<Api>[] | undefined {
 	const bin = agyPath();
 	if (!bin) return undefined;
 	try {
-		const out = execFileSync(bin, ["models"], { encoding: "utf8", timeout: 8000, stdio: ["ignore", "pipe", "ignore"], windowsHide: true, cwd: os.tmpdir(), shell: process.platform === "win32" && /\.(cmd|bat)$/i.test(bin) });
+		const out = execFileSync(/* turbopackIgnore: true */ bin, ["models"], { encoding: "utf8", timeout: 8000, stdio: ["ignore", "pipe", "ignore"], windowsHide: true, cwd: os.tmpdir(), shell: process.platform === "win32" && /\.(cmd|bat)$/i.test(bin) });
 		const list = parseAgyModels(out);
 		agyLive = list.length > 0;
 		return agyLive ? list : undefined;
