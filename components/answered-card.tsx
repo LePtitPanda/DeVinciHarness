@@ -76,7 +76,7 @@ export function AnsweredCard({ answer: savedAnswer, input }: { answer: QuestionA
 						: isQuiz
 								? answer.questionType === "predict"
 									? "Prediction"
-									: "Check"
+									: "Got it?"
 									: isExplain
 										? "Explain"
 											: "Question"}

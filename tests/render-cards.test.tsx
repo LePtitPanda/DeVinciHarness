@@ -706,7 +706,7 @@ describe("predict vs check rendering", () => {
 				onSubmit={() => {}}
 			/>,
 		);
-		assert.ok(html.includes("Check"), "the chip carries the question's type");
+		assert.ok(html.includes("Got it?"), "the chip carries the question's type");
 		assert.ok(!html.includes(">Quiz<"), "the generic label is retired");
 	});
 

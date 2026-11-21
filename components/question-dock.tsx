@@ -251,7 +251,7 @@ export function QuestionDockBar({
 			<span className="shrink-0 text-xs font-medium uppercase tracking-wide text-muted-foreground">
 				{label ??
 							toolLabel ??
-							(toolName === "quiz" ? "Check" : toolName === "explain" ? "Explain" : "Question")}
+							(toolName === "quiz" ? "Got it?" : toolName === "explain" ? "Explain" : "Question")}
 			</span>
 			<span className="min-w-0 flex-1 text-muted-foreground">
 				<QuestionPreview>{question}</QuestionPreview>
@@ -626,7 +626,7 @@ function QuestionDockForm({
 							: kind === "quiz"
 								? qd.questionType === "predict"
 									? "Prediction"
-									: "Check"
+									: "Got it?"
 									: kind === "explain"
 										? "Explain"
 											: "Question"}

@@ -2,7 +2,7 @@
 export const STRINGS = {
   en: {
     loading: 'Loading…', saved: 'Saved', study: 'What do you want to study?', studyPh: 'I want to study… (e.g. matrices for the Algèbre linéaire exam)',
-    exams: 'Upcoming exams', noExams: 'No exams found. Import your schedule in Settings → De Vinci.', revise: 'Revise', laterExams: (n) => `Show ${n} later exam${n > 1 ? 's' : ''}`, hideLater: 'Hide later exams', noExamsSoon: 'No exams in the next 30 days.',
+    exams: 'Upcoming exams', noExams: 'No exams found. Import your schedule in Settings → De Vinci.', revise: 'Revise', practise: 'Practise', laterExams: (n) => `Show ${n} later exam${n > 1 ? 's' : ''}`, hideLater: 'Hide later exams', noExamsSoon: 'No exams in the next 30 days.',
     today: 'today', tomorrow: 'tomorrow', inDays: (d) => `in ${d} days`,
     deadlines: (g) => `Moodle deadlines (30 days${g ? `, group ${g}` : ''})`, noDeadlines: 'Nothing due, or Moodle is not connected.',
     hiddenFor: (n) => `${n} hidden for other groups/campuses (show)`,
@@ -23,11 +23,11 @@ export const STRINGS = {
     timetable: 'Timetable', weekOf: (d) => `Week of ${d}`, prev: '← Previous', thisWeek: 'This week', next: 'Next →',
     mReviseExam: 'Revise for this exam', mPastExams: 'Practise with past exams', mScope: 'What does this exam cover?',
     mRevise: (c) => `Revise ${c}`, mPrepare: 'Prepare for this class', mRecap: 'Recap this class', mQuiz: 'Quiz me on this course',
-    tRevision: 'revision', tPast: 'past exams', tScope: 'exam scope', tPrepare: 'preview', tRecap: 'recap', tQuiz: 'quiz',
+    tRevision: 'revision', tPractice: 'practice', tPast: 'past exams', tScope: 'exam scope', tPrepare: 'preview', tRecap: 'recap', tQuiz: 'quiz',
   },
   fr: {
     loading: 'Chargement…', saved: 'Enregistré', study: 'Que veux-tu réviser ?', studyPh: 'Je veux étudier… (ex. les matrices pour l’examen d’Algèbre linéaire)',
-    exams: 'Examens à venir', noExams: 'Aucun examen. Importe ton emploi du temps dans Paramètres → De Vinci.', revise: 'Réviser', laterExams: (n) => (n > 1 ? `Voir les ${n} examens suivants` : 'Voir l’examen suivant'), hideLater: 'Masquer les examens suivants', noExamsSoon: 'Aucun examen dans les 30 prochains jours.',
+    exams: 'Examens à venir', noExams: 'Aucun examen. Importe ton emploi du temps dans Paramètres → De Vinci.', revise: 'Réviser', practise: 'S’entraîner', laterExams: (n) => (n > 1 ? `Voir les ${n} examens suivants` : 'Voir l’examen suivant'), hideLater: 'Masquer les examens suivants', noExamsSoon: 'Aucun examen dans les 30 prochains jours.',
     today: 'aujourd’hui', tomorrow: 'demain', inDays: (d) => `dans ${d} jours`,
     deadlines: (g) => `Rendus Moodle (30 jours${g ? `, groupe ${g}` : ''})`, noDeadlines: 'Rien à rendre, ou Moodle n’est pas connecté.',
     hiddenFor: (n) => `${n} masqués (autres groupes/campus) — afficher`,
@@ -48,7 +48,7 @@ export const STRINGS = {
     timetable: 'Emploi du temps', weekOf: (d) => `Semaine du ${d}`, prev: '← Précédente', thisWeek: 'Cette semaine', next: 'Suivante →',
     mReviseExam: 'Réviser pour cet examen', mPastExams: 'S’entraîner sur les annales', mScope: 'Que couvre cet examen ?',
     mRevise: (c) => `Réviser ${c}`, mPrepare: 'Préparer ce cours', mRecap: 'Récapituler ce cours', mQuiz: 'Me tester sur ce cours',
-    tRevision: 'révision', tPast: 'annales', tScope: 'programme de l’examen', tPrepare: 'préparation', tRecap: 'récap', tQuiz: 'quiz',
+    tRevision: 'révision', tPractice: 'entraînement', tPast: 'annales', tScope: 'programme de l’examen', tPrepare: 'préparation', tRecap: 'récap', tQuiz: 'quiz',
   },
 };
 

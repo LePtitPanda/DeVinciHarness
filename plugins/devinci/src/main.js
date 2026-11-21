@@ -51,6 +51,7 @@ export function activate(ctx) {
     sessionStorage.setItem(`lh.openingPrompt.${id}`, JSON.stringify({ text: `${visible ? '' : HIDDEN}${request}\n\n(${context}${STUDY_TAIL})`, attempted: false }));
     ctx.app.openSession(id);
   }
+  const practiseExam = (e) => startStudy({ title: `${e.title} · ${t('tPractice')}`, kind: 'practice', request: `Give me practice problems for my ${e.title} exam.`, context: `The exam is on ${e.start.slice(0, 10)} at ${e.start.slice(11)}; check the course announcements for what it covers. ` });
   const reviseExam = (e) => startStudy({ title: `${e.title} · ${t('tRevision')}`, request: `Help me revise for my ${e.title} exam.`, context: `The exam is on ${e.start.slice(0, 10)} at ${e.start.slice(11)}; check the course announcements for what it covers. ` });
 
   // ── shared form pieces (settings page and setup) ──
@@ -166,7 +167,7 @@ export function activate(ctx) {
           onChange: (v) => { draft = v; composer.update({ value: v }); },
           onSend: () => startStudy({ request: draft, visible: true }),
         }, { signal });
-        const examItem = (e) => el('li', {}, el('strong', {}, `${fmtDay(e.start)} ${e.start.slice(11)}`), ` ${e.title}`, el('span', { class: 'dv-muted' }, ` · ${when(e.start)}`), button({ label: t('revise'), variant: 'ghost', onClick: () => reviseExam(e) }, signal));
+        const examItem = (e) => el('li', {}, el('strong', {}, `${fmtDay(e.start)} ${e.start.slice(11)}`), ` ${e.title}`, el('span', { class: 'dv-muted' }, ` · ${when(e.start)}`), button({ label: t('revise'), variant: 'ghost', onClick: () => reviseExam(e) }, signal), button({ label: t('practise'), variant: 'ghost', onClick: () => practiseExam(e) }, signal));
         const soon = overview.exams.filter((e) => daysUntil(e.start) <= 30), later = overview.exams.filter((e) => daysUntil(e.start) > 30);
         const laterList = el('ul', { class: 'dv-list dv-later-list', hidden: true }, later.map(examItem));
         const laterToggle = later.length > 0 && el('button', { class: 'dv-link', 'aria-expanded': 'false', onclick: (ev) => { laterList.hidden = !laterList.hidden; ev.currentTarget.setAttribute('aria-expanded', String(!laterList.hidden)); ev.currentTarget.textContent = laterList.hidden ? t('laterExams', later.length) : t('hideLater'); } }, t('laterExams', later.length));
