@@ -393,6 +393,9 @@ export function runOnboarding(ctx, el, status) {
       say(t('aiQ'));
     }
     summary.ai = true;
+
+    say(t('guideHead'), t('guide1'), t('guide2'), t('guide3'), ...(summary.school ? [t('guide4')] : []));
+    await ask({ choices: [['ok', t('guideGo')]] });
   }
 
   const finish = async () => {

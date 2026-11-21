@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { SessionIntro } from "./session-intro";
 import { usePathname } from "next/navigation";
 import { useChatSession } from "@/components/session";
 import { usePlugins } from "./plugins";
@@ -21,7 +22,6 @@ import { useStickToBottomContext, type StickToBottomContext } from "use-stick-to
 import {
 	Conversation,
 	ConversationContent,
-	ConversationEmptyState,
 	ConversationScrollButton,
 } from "@/components/ai-elements/conversation";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
@@ -1749,12 +1749,7 @@ export function Chat({
 					<TranscriptElementReporter onElement={setTranscriptElement} />
 					<ConversationContent className="min-h-full gap-0 p-0">
 						<div data-session-find-root="" className={`${COLUMN} flex flex-1 flex-col gap-4 pt-4`}>
-							{messages.length === 0 && !busy && (
-								<ConversationEmptyState
-									title="New session"
-									description="The teacher will open by probing what you already know."
-								/>
-							)}
+							<SessionIntro kind={kind === "practice" ? "practice" : "teaching"} />
 
 							{messages.map((m, mi) =>
 								// Fork (DeVinciHarness): a plugin-started session's opening brief
