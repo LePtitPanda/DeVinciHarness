@@ -38,6 +38,8 @@ function parseIcs(text) {
     e.title ??= (e.summary || '').replace(/^\[[^\]]*\]\s*/, '').replace(/\s*\[[^\]]*\].*$/, '') || e.summary || 'Untitled';
     e.type ??= /\[([^\]]+)\]/.exec((e.summary || '').replace(/^\[[^\]]*\]/, ''))?.[1] ?? '';
     e.exam = /exam/i.test(e.type) || /\[Examen\]/i.test(e.summary || '');
+    // ESILV computer-science courses carry an IN code (e.g. [MESIIN230226]); the tutor can't teach code yet.
+    e.coding = /^\[[A-Z]{4}IN\d/.test(e.summary || '');
   }
   return events.sort((a, b) => a.start.localeCompare(b.start));
 }

@@ -167,7 +167,7 @@ export function activate(ctx) {
           onChange: (v) => { draft = v; composer.update({ value: v }); },
           onSend: () => startStudy({ request: draft, visible: true }),
         }, { signal });
-        const examItem = (e) => el('li', {}, el('strong', {}, `${fmtDay(e.start)} ${e.start.slice(11)}`), ` ${e.title}`, el('span', { class: 'dv-muted' }, ` · ${when(e.start)}`), button({ label: t('revise'), variant: 'ghost', onClick: () => reviseExam(e) }, signal), button({ label: t('practise'), variant: 'ghost', onClick: () => practiseExam(e) }, signal));
+        const examItem = (e) => el('li', {}, el('strong', {}, `${fmtDay(e.start)} ${e.start.slice(11)}`), ` ${e.title}`, el('span', { class: 'dv-muted' }, ` · ${when(e.start)}`), ...(e.coding ? [el('span', { class: 'dv-muted' }, ` · ${t('unsupported')}`)] : [button({ label: t('revise'), variant: 'ghost', onClick: () => reviseExam(e) }, signal), button({ label: t('practise'), variant: 'ghost', onClick: () => practiseExam(e) }, signal)]));
         const soon = overview.exams.filter((e) => daysUntil(e.start) <= 30), later = overview.exams.filter((e) => daysUntil(e.start) > 30);
         const laterList = el('ul', { class: 'dv-list dv-later-list', hidden: true }, later.map(examItem));
         const laterToggle = later.length > 0 && el('button', { class: 'dv-link', 'aria-expanded': 'false', onclick: (ev) => { laterList.hidden = !laterList.hidden; ev.currentTarget.setAttribute('aria-expanded', String(!laterList.hidden)); ev.currentTarget.textContent = laterList.hidden ? t('laterExams', later.length) : t('hideLater'); } }, t('laterExams', later.length));
@@ -193,7 +193,7 @@ export function activate(ctx) {
   // ── timetable ──
   function eventMenu(anchor, e) {
     const c = e.title;
-    const items = e.exam ? [
+    const items = e.coding ? [{ key: 'unsupported', label: t('unsupported'), disabled: true, onSelect: () => {} }] : e.exam ? [
       { key: 'revise', label: t('mReviseExam'), onSelect: () => reviseExam(e) },
       { key: 'past', label: t('mPastExams'), onSelect: () => startStudy({ title: `${c} · ${t('tPast')}`, kind: 'practice', request: `Give me practice problems from previous years' ${c} exams.`, context: 'Find them in LeoData and say which year each problem comes from. ' }) },
       { key: 'scope', label: t('mScope'), onSelect: () => startStudy({ title: `${c} · ${t('tScope')}`, request: `What does my ${c} exam on ${e.start.slice(0, 10)} cover?`, context: 'Read the course announcements and quote the ones you rely on. ' }) },

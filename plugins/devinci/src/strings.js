@@ -22,7 +22,7 @@ export const STRINGS = {
     features: 'Features', featuresOn: 'Use the De Vinci features', featuresHelp: 'The De Vinci page, the timetable, and Moodle/LeoData access for the AI. Off for students outside the Pôle Léonard de Vinci.', featuresOff: 'The De Vinci features are off. Turn them on in Settings → De Vinci.', setupAgain: 'First-time setup', runSetup: 'Run setup again', resetConfirm: 'Run setup again? This resets DeVinciHarness to a fresh install: Moodle and LeoData are signed out, your timetable, profile and model choices are cleared, and the NVIDIA key is removed. Your sessions and library stay.',
     timetable: 'Timetable', weekOf: (d) => `Week of ${d}`, prev: '← Previous', thisWeek: 'This week', next: 'Next →',
     mReviseExam: 'Revise for this exam', mPastExams: 'Practise with past exams', mScope: 'What does this exam cover?',
-    mRevise: (c) => `Revise ${c}`, mPrepare: 'Prepare for this class', mRecap: 'Recap this class', mQuiz: 'Quiz me on this course',
+    mRevise: (c) => `Revise ${c}`, mPrepare: 'Prepare for this class', mRecap: 'Recap this class', mQuiz: 'Quiz me on this course', unsupported: 'Coding courses are currently unsupported',
     tRevision: 'revision', tPractice: 'practice', tPast: 'past exams', tScope: 'exam scope', tPrepare: 'preview', tRecap: 'recap', tQuiz: 'quiz',
   },
   fr: {
@@ -47,7 +47,7 @@ export const STRINGS = {
     features: 'Fonctions', featuresOn: 'Utiliser les fonctions De Vinci', featuresHelp: 'La page De Vinci, l’emploi du temps, et l’accès de l’IA à Moodle/LeoData. Désactivé pour les étudiants hors du Pôle Léonard de Vinci.', featuresOff: 'Les fonctions De Vinci sont désactivées. Active-les dans Paramètres → De Vinci.', setupAgain: 'Première configuration', runSetup: 'Relancer la configuration', resetConfirm: 'Relancer la configuration ? DeVinciHarness repart comme une nouvelle installation : Moodle et LeoData sont déconnectés, ton emploi du temps, ton profil et tes choix de modèles sont effacés, et la clé NVIDIA est supprimée. Tes sessions et ta bibliothèque restent.',
     timetable: 'Emploi du temps', weekOf: (d) => `Semaine du ${d}`, prev: '← Précédente', thisWeek: 'Cette semaine', next: 'Suivante →',
     mReviseExam: 'Réviser pour cet examen', mPastExams: 'S’entraîner sur les annales', mScope: 'Que couvre cet examen ?',
-    mRevise: (c) => `Réviser ${c}`, mPrepare: 'Préparer ce cours', mRecap: 'Récapituler ce cours', mQuiz: 'Me tester sur ce cours',
+    mRevise: (c) => `Réviser ${c}`, mPrepare: 'Préparer ce cours', mRecap: 'Récapituler ce cours', mQuiz: 'Me tester sur ce cours', unsupported: 'Les cours d’informatique ne sont pas encore pris en charge',
     tRevision: 'révision', tPractice: 'entraînement', tPast: 'annales', tScope: 'programme de l’examen', tPrepare: 'préparation', tRecap: 'récap', tQuiz: 'quiz',
   },
 };

@@ -307,7 +307,7 @@ function activate(ctx) {
     const start = /^\d{4}-\d{2}-\d{2}$/.test(input?.start ?? '') ? input.start : ics.localStamp().slice(0, 10);
     const end = ics.localStamp(new Date(Date.parse(`${start}T12:00:00`) + 7 * 86400e3)).slice(0, 10);
     return (await schedule()).filter((e) => e.type !== 'NR' && e.start >= `${start}T00:00` && e.start < `${end}T00:00`)
-      .map((e) => ({ start: e.start, end: e.end, title: e.title, type: e.type, exam: e.exam, place: e.location ? ics.place(e.location) : '', teacher: e.teacher || '' }));
+      .map((e) => ({ start: e.start, end: e.end, title: e.title, type: e.type, exam: e.exam, coding: e.coding, place: e.location ? ics.place(e.location) : '', teacher: e.teacher || '' }));
   });
   ctx.handle('login', async () => { token = (await desktop('login')).token; tokenLoaded = true; return { connected: !!token }; });
   ctx.handle('logout', async () => { await desktop('logout'); token = null; return { connected: false }; });
@@ -336,7 +336,7 @@ function activate(ctx) {
         hiddenDeadlines = list.filter((d) => otherGroup(d.name, group, campus));
       } catch (e) { deadlineError = e.message; }
     }
-    const pick = (e) => ({ start: e.start, end: e.end, title: e.title, type: e.type, place: e.location ? ics.place(e.location) : '' });
+    const pick = (e) => ({ start: e.start, end: e.end, title: e.title, type: e.type, coding: e.coding, place: e.location ? ics.place(e.location) : '' });
     return {
       exams: ics.between(all, now, later).filter((e) => e.exam).map(pick),
       classes: ics.between(all, now, `${ics.localStamp(new Date(Date.now() + 86400e3)).slice(0, 10)}T23:59`).filter((e) => !e.exam && e.type !== 'NR').map(pick),
