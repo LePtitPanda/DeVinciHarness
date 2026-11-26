@@ -10,9 +10,14 @@ const STEPS = {
 		"Exercises one by one. Write your reasoning, or attach a photo of your paper.",
 		"Feedback after each answer. Ask for a hint whenever you are stuck.",
 	],
+	chat: [
+		"Ask anything, like you would ask a general assistant.",
+		"It opens your course files only when the question needs them.",
+		"No quizzes, and nothing is added to your graph.",
+	],
 } as const;
 
-export function SessionIntro({ kind }: { kind: "teaching" | "practice" }) {
+export function SessionIntro({ kind }: { kind: "teaching" | "practice" | "chat" }) {
 	return (
 		<section data-testid="session-intro" className="rounded-lg border border-border/60 px-4 py-3 text-sm text-muted-foreground">
 			<p className="mb-1.5 text-xs font-medium uppercase tracking-wide">How it goes</p>

@@ -113,7 +113,7 @@ export interface PluginInference {
 	 * message is not necessarily successful. Caller/activation cancellation applies. */
 	complete(request: PluginInferenceRequest): Promise<AssistantMessage>;
 }
-export type PluginAgentKind = "prober" | "teacher" | "practice";
+export type PluginAgentKind = "prober" | "teacher" | "practice" | "chat";
 /** Agent contributions are additive and apply to explicitly selected agent kinds. */
 export interface PluginInstructions {
 	agents: PluginAgentKind[];

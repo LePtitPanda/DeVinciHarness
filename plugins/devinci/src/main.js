@@ -11,6 +11,7 @@ const DAY_START = 8, DAY_END = 21, HOUR_PX = 52;
 // Sessions started by a button carry this invisible prefix; the chat hides that opening brief.
 const HIDDEN = '⁣';
 const LANG_KEY = 'dv.lang';
+const CHAT_TAIL = 'If the answer depends on my course, use the school tools to find the material and say what you used; otherwise just answer.';
 const STUDY_TAIL = 'Use the school tools to find the matching Moodle course and files, and teach from the actual course material.';
 
 function el(tag, attrs = {}, ...children) {
@@ -41,14 +42,14 @@ export function activate(ctx) {
 
 
   // ── sessions ──
-  async function startStudy({ title, request, context = '', visible = false, kind }) {
+  async function startStudy({ title, request, context = '', visible = false, kind, tail = STUDY_TAIL }) {
     request = request.trim();
     if (!request) return;
     const res = await fetch('/api/chats', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ title: (title || request).slice(0, 80), ...(kind ? { kind } : {}) }) });
     if (!res.ok) throw new Error(`Could not create a session (HTTP ${res.status})`);
     const { id } = await res.json();
     // Same handover the native "new session" flow uses: the chat sends it on open.
-    sessionStorage.setItem(`lh.openingPrompt.${id}`, JSON.stringify({ text: `${visible ? '' : HIDDEN}${request}\n\n(${context}${STUDY_TAIL})`, attempted: false }));
+    sessionStorage.setItem(`lh.openingPrompt.${id}`, JSON.stringify({ text: `${visible ? '' : HIDDEN}${request}\n\n(${context}${tail})`, attempted: false }));
     ctx.app.openSession(id);
   }
   const practiseExam = (e) => startStudy({ title: `${e.title} · ${t('tPractice')}`, kind: 'practice', request: `Give me practice problems for my ${e.title} exam.`, context: `The exam is on ${e.start.slice(0, 10)} at ${e.start.slice(11)}; check the course announcements for what it covers. ` });
@@ -160,6 +161,13 @@ export function activate(ctx) {
         const overview = await ctx.call('overview');
         if (signal.aborted) return;
 
+        const ask = el('div');
+        let askDraft = '';
+        const askComposer = ctx.ui.mountComposer(ask, {
+          value: '', placeholder: t('chatPh'),
+          onChange: (v) => { askDraft = v; askComposer.update({ value: v }); },
+          onSend: () => startStudy({ request: askDraft, visible: true, kind: 'chat', tail: CHAT_TAIL }),
+        }, { signal });
         const study = el('div');
         let draft = '';
         const composer = ctx.ui.mountComposer(study, {
@@ -180,6 +188,7 @@ export function activate(ctx) {
         root.replaceChildren(...[
           el('h1', {}, 'De Vinci'),
           missing.length > 0 && el('section', { class: 'dv-card dv-ask' }, el('p', {}, t('missing', missing.join(', '))), button({ label: t('openSettings'), variant: 'outline', onClick: () => ctx.app.openSettings() }, signal)),
+          el('section', { class: 'dv-card' }, el('h2', {}, t('chat')), ask),
           el('section', { class: 'dv-card' }, el('h2', {}, t('study')), study),
           listCard(t('exams'), soon.map(examItem), overview.exams.length ? t('noExamsSoon') : t('noExams'), laterList, laterToggle),
           listCard(t('deadlines', overview.group), overview.deadlines.map(deadlineItem), overview.deadlineError || t('noDeadlines'), hiddenToggle, hiddenList),

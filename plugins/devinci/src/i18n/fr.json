@@ -769,5 +769,8 @@
  "Removes every topic and link. Your files and chats stay.": "Supprime tous les sujets et liens. Tes fichiers et sessions restent.",
  "Could not delete the graph": "Impossible de supprimer le graphe",
  "Add a photo of your work (or paste one)": "Ajoute une photo de ton travail (ou colle-la)",
- "Remove image": "Retirer l’image"
+ "Remove image": "Retirer l’image",
+ "Ask anything, like you would ask a general assistant.": "Pose n’importe quelle question, comme à un assistant classique.",
+ "It opens your course files only when the question needs them.": "Il n’ouvre tes fichiers de cours que si la question le demande.",
+ "No quizzes, and nothing is added to your graph.": "Pas de quiz, et rien n’est ajouté à ton graphe."
 }

@@ -98,9 +98,9 @@ const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v ===
 const operationId = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
 // Common native provider subset: no punctuation, leading digit, or >64-char names.
 const nativeToolName = /^[A-Za-z_][A-Za-z0-9_-]{0,63}$/;
-const agentKinds: readonly PluginAgentKind[] = ["prober", "teacher", "practice"];
+const agentKinds: readonly PluginAgentKind[] = ["prober", "teacher", "practice", "chat"];
 function targets(agents: PluginAgentKind[]): Set<PluginAgentKind> {
-	if (!Array.isArray(agents) || !agents.length || !agents.every(agent => agentKinds.includes(agent))) throw new Error("Plugin contributions require explicit nonempty prober/teacher/practice targets");
+	if (!Array.isArray(agents) || !agents.length || !agents.every(agent => agentKinds.includes(agent))) throw new Error("Plugin contributions require explicit nonempty prober/teacher/practice/chat targets");
 	return new Set(agents);
 }
 const safeSegment = (p: string) => /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(p);

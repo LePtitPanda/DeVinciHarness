@@ -20,6 +20,10 @@ import { healToolRecord, withArgumentHeal } from "./tools/heal.ts";
 import { sendToUserApplies, sendToUserTool } from "./tools/send-to-user.ts";
 import { makeNarrationGuard, narrationGuardApplies, SEND_TO_USER_DELIVERY_RULE } from "./narration-guard.ts";
 import { createReadTool, readTool } from "./tools/read.ts";
+import { lsTool } from "./tools/ls.ts";
+import { findTool } from "./tools/find.ts";
+import { grepTool } from "./tools/grep.ts";
+import { jobTools, type JobToolContext } from "./tools/jobs.ts";
 import { quizInputObject, quizInputProblems } from "../core/question-core.ts";
 import { QUESTION_TOOLS, TOGGLEABLE_TOOLS, type EnabledTools } from "../core/pending.ts";
 import type { PluginToolContext } from "../core/plugins.ts";
@@ -54,7 +58,7 @@ import { PluginQuestionLedger, type NativePluginQuestionContribution } from "./p
 
 /** Which agent's prompt directory to compose. Practice (2026-10-04)
  *  composes ONLY its own directory — see prompt-segments.ts. */
-export type AgentKind = "prober" | "teacher" | "practice";
+export type AgentKind = "prober" | "teacher" | "practice" | "chat";
 
 /** Reserve conversation builtins even when role/mechanics/settings gates hide them.
  * New builtin names must join this catalog; actual turn tools are reserved too. */
@@ -101,6 +105,7 @@ const composedInstructions: Record<AgentKind, string> = {
 	prober: composeInstructions("prober"),
 	teacher: composeInstructions("teacher"),
 	practice: composeInstructions("practice"),
+	chat: composeInstructions("chat"),
 };
 
 // Money channel (wave 4): the chat-handler passes a per-turn collector;
@@ -403,6 +408,18 @@ export function createPracticeAgent(ctx: PracticeToolContext, opts: AgentBuildOp
 	if (opts.tools !== undefined) return baseAgentOptions("practice", opts, Object.values(opts.tools));
 	const gate = createPracticeGate(ctx);
 	return baseAgentOptions("practice", opts, Object.values(practiceTools(ctx, gate)), undefined, { gate, graphNodes: ctx.graphNodes });
+}
+
+/** Chat (fork): a plain Q&A session — no probing, no questions, no problems,
+ *  no graph. Files and the research/pdf jobs only; plugin tools join as usual. */
+export function createChatAgent(jobs: JobToolContext, opts: AgentBuildOptions = {}) {
+	if (opts.tools !== undefined) return baseAgentOptions("chat", opts, Object.values(opts.tools));
+	const j = jobTools(jobs);
+	return baseAgentOptions("chat", opts, Object.values(healToolRecord({
+		read: readTool, ls: lsTool, find: findTool, grep: grepTool,
+		...(j.research ? { research: j.research } : {}),
+		pdf: j.pdf!,
+	})));
 }
 
 export type ProberAgent = ReturnType<typeof createProberAgent>;

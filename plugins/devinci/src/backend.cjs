@@ -11,7 +11,7 @@ const ics = require('./ics.cjs');
 const ICAL_PREFIX = 'https://ical.devinci.me/';
 const ICS_TTL_MS = 6 * 3600e3;
 const PART_CHARS = 40000;
-const AGENTS = ['prober', 'teacher', 'practice'];
+const AGENTS = ['prober', 'teacher', 'practice', 'chat'];
 
 const LANGUAGE = { en: 'Teach and write in English.', fr: 'Enseigne et écris en français (the learner chose French), including questions, options and explanations.' };
 const INSTRUCTIONS = `The learner is an ESILV (De Vinci, Paris) engineering student. School tools are available:

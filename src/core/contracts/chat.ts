@@ -16,7 +16,7 @@ import type { EmissionStats } from "./graph.ts";
 /** Session kind: teach is the default when a saved record omits kind.
  * Practice uses the adaptive-practice agent without teaching extraction or
  * graph writes. Reading an absent kind does not require a record migration. */
-export type ChatKind = "teach" | "practice";
+export type ChatKind = "teach" | "practice" | "chat";
 
 /** One persisted native session under data/chats/<id>.json. Messages retain
  * native agent history; transcript rendering groups them into a separate view.
