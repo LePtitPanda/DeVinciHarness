@@ -143,6 +143,8 @@ if (process.argv.includes("--browser-service")) {
 			const win = BrowserWindow.getAllWindows()[0];
 			if (win) {
 				if (win.isMinimized()) win.restore();
+				// A window that never got ready-to-show stays hidden; focus alone leaves the app invisible.
+				win.show();
 				win.focus();
 			}
 		});
