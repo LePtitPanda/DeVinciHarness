@@ -140,3 +140,25 @@ test("framework IPC alone cannot request subscription credentials or retain a us
 	await assert.rejects(subscriptionRequest("snapshot"), /desktop app/); assert.equal(sends, previous); assert.deepEqual(nativeSubscriptionModels(), []);
 	process.env.LH_DESKTOP_SERVER = "1";
 });
+test("openai-codex: a WebSocket turn (no fetch) still reports dispatch, so usage and graph extraction run", async (t) => {
+	const previous = globalThis.WebSocket;
+	t.after(() => { globalThis.WebSocket = previous; });
+	class FakeSocket extends EventTarget {
+		readyState = 0;
+		constructor() { super(); queueMicrotask(() => { this.readyState = 1; this.dispatchEvent(new Event("open")); }); }
+		send() {
+			queueMicrotask(() => this.dispatchEvent(Object.assign(new Event("message"), { data: JSON.stringify({ type: "response.created", response: { id: "resp_fixture" } }) })));
+			queueMicrotask(() => this.dispatchEvent(Object.assign(new Event("message"), { data: JSON.stringify({ type: "error", message: "fixture end" }) })));
+		}
+		close() { this.readyState = 3; }
+	}
+	globalThis.WebSocket = FakeSocket as never;
+	const native = piModels().getModels("openai-codex").find((m) => m.api === "openai-codex-responses")!;
+	const logical = NATIVE_SUBSCRIPTIONS.find((p) => p.providerId === "openai-codex")!.logicalId;
+	let dispatched = 0, denied = 0, fetches = 0;
+	const engine = piEngineForSpec({ provider: logical, id: native.id }, false, { captured() {}, beforeDispatch() { dispatched++; }, noDispatch() { denied++; } });
+	await engine.streamFn(engine.model, context, { fetch: async () => { fetches++; throw new Error("WebSocket turn must not use fetch"); } } as never).result();
+	assert.equal(fetches, 0, "the fixture socket must carry the turn");
+	assert.equal(dispatched, 1);
+	assert.equal(denied, 0);
+});

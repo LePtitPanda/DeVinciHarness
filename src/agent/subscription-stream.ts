@@ -62,8 +62,6 @@ export function nativeSubscriptionStream(provider: Provider, background: () => b
 				const fetch = options?.fetch ?? globalThis.fetch;
 				const source = provider.streamSimple(transport, subscriptionHistory(normalizeContext(context), logicalModel, nativeId), {
 					...options, apiKey: auth.apiKey, headers: { ...options?.headers, ...auth.headers }, signal, maxRetries: 0,
-					// Codex's default WebSocket transport bypasses `fetch`, so beforeDispatch never fires: no usage, no graph extraction.
-					...(nativeId === "openai-codex" ? { transport: "sse" as const } : {}),
 					fetch: (input, init) => {
 						check(); if (committed) throw new Error("Subscription requests do not retry after dispatch");
 						lifecycle?.beforeDispatch(subscriptionAdmissionScope(scope!)); committed = true; return fetch(input, init);
@@ -82,6 +80,8 @@ export function nativeSubscriptionStream(provider: Provider, background: () => b
 				});
 				for await (const event of source) {
 					check();
+					// Codex's WebSocket transport never calls `fetch`; its first event is the dispatch signal.
+					if (!committed) { lifecycle?.beforeDispatch(subscriptionAdmissionScope(scope!)); committed = true; }
 					const message = "partial" in event ? event.partial : event.type === "done" ? event.message : event.error;
 					partial = { ...message, provider: logicalModel.provider };
 					if (event.type === "error") throw new Error(event.error.errorMessage ?? "Native stream failed");
