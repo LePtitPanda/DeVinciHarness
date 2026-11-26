@@ -12,7 +12,7 @@ test("chat sessions compose their own prompt, without the teaching base or quest
 });
 
 test("the chat agent carries files and jobs, never quiz, plan, problem or probe tools", () => {
-	const agent = createChatAgent({ chatId: "chat_fixture", jobStore: {} as never, spawn: () => {}, searchAvailable: false }, {
+	const agent = createChatAgent({ chatId: "chat_fixture", jobStore: {} as never, spawn: () => {}, searchAvailable: () => false }, {
 		engine: { model: { api: "faux", provider: "faux", id: "faux-model", contextWindow: 8192 } as never, streamFn: (async () => { throw new Error("not streamed"); }) as never },
 	});
 	const names = agent.state.tools.map((t: { name: string }) => t.name);
